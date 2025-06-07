@@ -10,7 +10,7 @@ FreeFlow is a crypto-native fundraising platform designed for causes often exclu
 [https://getfreeflow.org](https://getfreeflow.org)
 
 ## 📄 Grant Litepaper  
-[FreeFlow_Grant_Litepaper_v0.1.pdf](./docs/FreeFlow_Grant_Litepaper_v0.1.pdf)
+[FreeFlow_Grant_Litepaper_v0.1.pdf](FreeFlow_Grant_Litepaper_v0.1.pdf)
 
 ---
 
