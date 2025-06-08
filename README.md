@@ -33,7 +33,7 @@ FreeFlow is a crypto-native fundraising platform designed for causes often exclu
 
 ## 🚧 Roadmap (Q3 2025–Q1 2026)
 
-- MVP launch on Polygon
+- MVP launch on Base
 - Validator layer + FLW staking
 - Multi-chain bridging (Arbitrum, Base)
 - Fiat withdrawal via KYC
