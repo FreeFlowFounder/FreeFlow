@@ -29,6 +29,19 @@ FreeFlow is a crypto-native fundraising platform designed for causes often exclu
 - **Supply:** 1,000,000,000 (fixed)  
 - **Utility:** Governance, staking, fee discounts, revenue share
 
+  🔧 FLW Token (Testnet)
+Network: Base Sepolia
+
+Token Name: FreeFlow
+
+Symbol: FLW
+
+Decimals: 18
+
+Total Supply: 1,000,000,000 FLW
+
+Contract Address: 0xC474568411B2335C594B0CeE539F9f74C4103B18
+
 ---
 
 ## 🚧 Roadmap (Q3 2025–Q1 2026)
