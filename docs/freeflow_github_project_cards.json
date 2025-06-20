@@ -1,0 +1,70 @@
+[
+  {
+    "title": "Campaign Creation - UI Flow",
+    "body": "**Status:** Done\n**Labels:** UI"
+  },
+  {
+    "title": "ETH Donation - Success Case",
+    "body": "**Status:** Done\n**Labels:** Donation"
+  },
+  {
+    "title": "FLW Donation - Token Decimal Accuracy",
+    "body": "**Status:** Done\n**Labels:** Token"
+  },
+  {
+    "title": "Countdown Timer - Accuracy and Sync",
+    "body": "**Status:** Done\n**Labels:** UI"
+  },
+  {
+    "title": "Campaign Balance Display - ETH/FLW",
+    "body": "**Status:** Done\n**Labels:** UI"
+  },
+  {
+    "title": "Campaign Balance Display - USD (Future)",
+    "body": "**Status:** Planned\n**Labels:** Feature"
+  },
+  {
+    "title": "ETH Withdrawal - Post Deadline",
+    "body": "**Status:** Done\n**Labels:** Withdrawal"
+  },
+  {
+    "title": "FLW Withdrawal - Post Deadline",
+    "body": "**Status:** Done\n**Labels:** Withdrawal"
+  },
+  {
+    "title": "Prevent Early Withdrawals",
+    "body": "**Status:** Done\n**Labels:** Validation"
+  },
+  {
+    "title": "Prevent Zero-Balance Withdrawals",
+    "body": "**Status:** Done\n**Labels:** Validation"
+  },
+  {
+    "title": "Campaign Owner Address Validation",
+    "body": "**Status:** Done\n**Labels:** Validation"
+  },
+  {
+    "title": "Factory Contract - Test Mode Toggle",
+    "body": "**Status:** Done\n**Labels:** Factory"
+  },
+  {
+    "title": "Campaign List Fetch - All Campaigns",
+    "body": "**Status:** Done\n**Labels:** Factory"
+  },
+  {
+    "title": "Campaign Event Logging - Verify Address",
+    "body": "**Status:** Done\n**Labels:** Factory"
+  },
+  {
+    "title": "Campaign Detail Rendering (Future)",
+    "body": "**Status:** Planned\n**Labels:** Frontend"
+  },
+  {
+    "title": "Main Campaign Directory (Future)",
+    "body": "**Status:** Planned\n**Labels:** Frontend"
+  },
+  {
+    "title": "Owner Campaign Dashboard (Future)",
+    "body": "**Status:** Planned\n**Labels:** Frontend"
+  }
+]
