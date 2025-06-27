@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 interface IERC20 {
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
-    function transfer(address to, uint256 value) external returns (bool);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
 }
 
@@ -11,55 +11,135 @@ contract Campaign {
     address public owner;
     uint256 public goal;
     uint256 public deadline;
-    IERC20 public flwToken;
+    address public flwToken;
+    address public feeDistributor;
+
+    string public title;
+    string public description;
+    string public imageUrl;
 
     mapping(address => uint256) public ethContributions;
-    mapping(address => uint256) public flwContributions;
-    uint256 public totalEthDonated;
-    uint256 public totalFlwDonated;
+    mapping(address => mapping(address => uint256)) public tokenContributions;
+    mapping(address => uint256) public tokenFeesCollected;
+    uint256 public ethFeesCollected;
+
+    address[] public updates;
+    string[] public updateMessages;
+    uint256[] public updateTimestamps;
+
+    event UpdatePosted(string message, uint256 timestamp);
+    event WithdrawAttempt(address indexed owner, uint256 ethAmount, uint256 tokenAmount);
+    event WithdrawSuccess(bool ethSent, bool tokenSent);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
 
     constructor(
         address _owner,
         uint256 _goal,
-        uint256 _durationInSeconds,
-        address _flwToken
+        uint256 _duration,
+        address _flwToken,
+        address _feeDistributor,
+        string memory _title,
+        string memory _description,
+        string memory _imageUrl
     ) {
-        require(_owner != address(0), "Owner address missing");
+        require(_owner != address(0), "Owner required");
         require(_goal > 0, "Goal must be > 0");
-        require(_durationInSeconds > 0, "Duration must be > 0");
-        require(_flwToken != address(0), "FLW address missing");
+        require(_duration > 0, "Duration required");
+        require(_flwToken != address(0), "FLW token required");
+        require(_feeDistributor != address(0), "FeeDistributor required");
 
         owner = _owner;
         goal = _goal;
-        deadline = block.timestamp + _durationInSeconds;
-        flwToken = IERC20(_flwToken);
+        deadline = block.timestamp + _duration;
+        flwToken = _flwToken;
+        feeDistributor = _feeDistributor;
+        title = _title;
+        description = _description;
+        imageUrl = _imageUrl;
     }
 
-    function donateETH() external payable {
+    receive() external payable {
+        donateETH();
+    }
+
+    function donateETH() public payable {
         require(block.timestamp < deadline, "Campaign ended");
-        require(msg.value > 0, "Must send ETH");
-        ethContributions[msg.sender] += msg.value;
-        totalEthDonated += msg.value;
+        require(msg.value > 0, "No ETH sent");
+
+        uint256 fee = (msg.value * 2) / 100; // 2%
+        ethFeesCollected += fee;
+        ethContributions[msg.sender] += msg.value - fee;
     }
 
-    function donateFLW(uint256 amount) external {
+    function donateToken(address token, uint256 amount) external {
         require(block.timestamp < deadline, "Campaign ended");
-        require(amount > 0, "Amount must be > 0");
-        require(flwToken.transferFrom(msg.sender, address(this), amount), "FLW transfer failed");
-        flwContributions[msg.sender] += amount;
-        totalFlwDonated += amount;
+        require(amount > 0, "No tokens sent");
+
+        uint256 fee = (token == flwToken) ? (amount * 5) / 1000 : (amount * 2) / 100; // 0.5% for FLW, 2% others
+        uint256 netAmount = amount - fee;
+
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        tokenFeesCollected[token] += fee;
+        tokenContributions[msg.sender][token] += netAmount;
     }
 
-    function withdrawETH() external {
-        require(msg.sender == owner, "Not campaign owner");
-        require(block.timestamp >= deadline, "Too early");
-        payable(owner).transfer(address(this).balance);
+    function withdraw() external onlyOwner {
+        require(block.timestamp >= deadline, "Campaign not ended");
+
+        uint256 ethBalance = address(this).balance - ethFeesCollected;
+        uint256 flwBalance = IERC20(flwToken).balanceOf(address(this)) - tokenFeesCollected[flwToken];
+
+        bool ethSent = true;
+        bool flwSent = true;
+
+        if (ethBalance > 0) {
+            (ethSent, ) = payable(owner).call{value: ethBalance}("");
+        }
+
+        if (flwBalance > 0) {
+            flwSent = IERC20(flwToken).transfer(owner, flwBalance);
+        }
+
+        emit WithdrawSuccess(ethSent, flwSent);
+        require(ethSent || flwSent, "Nothing withdrawn");
     }
 
-    function withdrawFLW() external {
-        require(msg.sender == owner, "Not campaign owner");
-        require(block.timestamp >= deadline, "Too early");
-        uint256 balance = flwToken.balanceOf(address(this));
-        require(flwToken.transfer(owner, balance), "FLW withdraw failed");
+    function collectETHFees(address to) external onlyOwner {
+        uint256 amount = ethFeesCollected;
+        ethFeesCollected = 0;
+        (bool success, ) = payable(to).call{value: amount}("");
+        require(success, "ETH fee transfer failed");
+    }
+
+    function collectTokenFees(address token, address to) external onlyOwner {
+        uint256 amount = tokenFeesCollected[token];
+        tokenFeesCollected[token] = 0;
+        require(IERC20(token).transfer(to, amount), "Token fee transfer failed");
+    }
+
+    function postUpdate(string calldata message) external onlyOwner {
+        updates.push(msg.sender);
+        updateMessages.push(message);
+        updateTimestamps.push(block.timestamp);
+        emit UpdatePosted(message, block.timestamp);
+    }
+
+    function getUpdateCount() external view returns (uint256) {
+        return updateMessages.length;
+    }
+
+    function getUpdate(uint256 index) external view returns (string memory, uint256) {
+        require(index < updateMessages.length, "Invalid index");
+        return (updateMessages[index], updateTimestamps[index]);
+    }
+
+    function hasEnded() public view returns (bool) {
+        return block.timestamp >= deadline;
     }
 }
+
+

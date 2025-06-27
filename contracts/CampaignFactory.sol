@@ -8,21 +8,37 @@ contract CampaignFactory is Ownable {
     address[] public campaigns;
     bool public testMode = false;
     address public flwToken;
+    address public feeDistributor;
 
     event CampaignCreated(address campaignAddress, address owner, uint256 goal, uint256 deadline, string name);
     event TestModeChanged(bool enabled);
     event TestModeAttempt(address sender, bool currentMode);
 
-    constructor(address _flwToken) {
+    constructor(address _flwToken, address _feeDistributor) Ownable(msg.sender) {
         flwToken = _flwToken;
-        transferOwnership(msg.sender);
+        feeDistributor = _feeDistributor;
     }
 
-    function createCampaign(uint256 goal, uint256 durationInDays, string memory name) external {
+    function createCampaign(
+        uint256 goal,
+        uint256 durationInDays,
+        string memory title,
+        string memory description,
+        string memory imageUrl
+    ) external {
         uint256 duration = testMode ? durationInDays : durationInDays * 1 days;
-        Campaign newCampaign = new Campaign(msg.sender, goal, duration, flwToken);
+        Campaign newCampaign = new Campaign(
+            msg.sender,
+            goal,
+            duration,
+            flwToken,
+            feeDistributor,
+            title,
+            description,
+            imageUrl
+        );
         campaigns.push(address(newCampaign));
-        emit CampaignCreated(address(newCampaign), msg.sender, goal, block.timestamp + duration, name);
+        emit CampaignCreated(address(newCampaign), msg.sender, goal, block.timestamp + duration, title);
     }
 
     function setTestMode(bool _testMode) external onlyOwner {
@@ -35,3 +51,4 @@ contract CampaignFactory is Ownable {
         return campaigns;
     }
 }
+
