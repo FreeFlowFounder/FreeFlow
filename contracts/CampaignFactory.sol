@@ -50,5 +50,18 @@ contract CampaignFactory is Ownable {
     function getAllCampaigns() external view returns (address[] memory) {
         return campaigns;
     }
+
+    // ✅ NEW: Collect fees from all deployed campaigns
+    function collectFeesFromAllCampaigns(address to) external onlyOwner {
+        for (uint256 i = 0; i < campaigns.length; i++) {
+            Campaign(payable(campaigns[i])).collectAllFees(to);
+        }
+    }
+
+    // ✅ NEW: Campaign count for pagination/stats
+    function getCampaignCount() external view returns (uint256) {
+        return campaigns.length;
+    }
 }
+
 

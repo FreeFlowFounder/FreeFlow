@@ -79,7 +79,7 @@ contract Campaign {
         require(block.timestamp < deadline, "Campaign ended");
         require(amount > 0, "No tokens sent");
 
-        uint256 fee = (token == flwToken) ? (amount * 5) / 1000 : (amount * 2) / 100; // 0.5% for FLW, 2% others
+        uint256 fee = (token == flwToken) ? (amount * 5) / 1000 : (amount * 2) / 100; // 0.5% FLW, 2% others
         uint256 netAmount = amount - fee;
 
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
@@ -108,17 +108,22 @@ contract Campaign {
         require(ethSent || flwSent, "Nothing withdrawn");
     }
 
-    function collectETHFees(address to) external onlyOwner {
+    function collectETHFees(address to) public onlyOwner {
         uint256 amount = ethFeesCollected;
         ethFeesCollected = 0;
         (bool success, ) = payable(to).call{value: amount}("");
         require(success, "ETH fee transfer failed");
     }
 
-    function collectTokenFees(address token, address to) external onlyOwner {
+    function collectTokenFees(address token, address to) public onlyOwner {
         uint256 amount = tokenFeesCollected[token];
         tokenFeesCollected[token] = 0;
         require(IERC20(token).transfer(to, amount), "Token fee transfer failed");
+    }
+
+    function collectAllFees(address to) external onlyOwner {
+        collectETHFees(to);
+        collectTokenFees(flwToken, to);
     }
 
     function postUpdate(string calldata message) external onlyOwner {
@@ -140,6 +145,19 @@ contract Campaign {
     function hasEnded() public view returns (bool) {
         return block.timestamp >= deadline;
     }
+
+    // ✅ New: get withdrawable ETH and FLW (excludes fees)
+    function getWithdrawableAmount() public view returns (uint256 ethAmount, uint256 flwAmount) {
+        ethAmount = address(this).balance - ethFeesCollected;
+        flwAmount = IERC20(flwToken).balanceOf(address(this)) - tokenFeesCollected[flwToken];
+    }
+
+    // ✅ New: view current pending fees
+    function getFeeBalances() public view returns (uint256 ethFee, uint256 flwFee) {
+        ethFee = ethFeesCollected;
+        flwFee = tokenFeesCollected[flwToken];
+    }
 }
+
 
 
