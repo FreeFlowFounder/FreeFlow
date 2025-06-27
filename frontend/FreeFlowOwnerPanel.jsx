@@ -3,6 +3,16 @@ import { ethers } from "ethers";
 import { getAddress } from "../contract-config";
 import PageContainer from "../components/PageContainer";
 
+
+const factoryAbi = [
+  "function getAllCampaigns() view returns (address[])"
+];
+
+const campaignAbi = [
+  "function getFeeBalances() view returns (uint256,uint256)"
+];
+
+
 const feeDistributorAbi = [
   "function distributeETHManually(uint256 amount) external",
   "function distributeTokenManually(address token, uint256 amount) external",
@@ -24,6 +34,9 @@ function FreeFlowOwnerPanel() {
   const [tokenAddress, setTokenAddress] = useState("");
   const [tokenAmount, setTokenAmount] = useState("");
   const [status, setStatus] = useState("");
+  const [totalUncollectedEthFees, setTotalUncollectedEthFees] = useState("");
+  const [totalUncollectedFlwFees, setTotalUncollectedFlwFees] = useState("");
+
 
   const [validatorWallet, setValidatorWallet] = useState("");
   const [teamWallet, setTeamWallet] = useState("");
@@ -33,6 +46,33 @@ function FreeFlowOwnerPanel() {
 
   const feeDistributorAddress = getAddress("FeeDistributor");
   const flwTokenAddress = getAddress("FLW");
+
+  
+  async function handlePreviewUncollectedFees() {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const factoryAddress = getAddress("CampaignFactory");
+      const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
+      const campaigns = await factory.getAllCampaigns();
+
+      let totalEth = ethers.BigNumber.from(0);
+      let totalFlw = ethers.BigNumber.from(0);
+
+      for (let addr of campaigns) {
+        const campaign = new ethers.Contract(addr, campaignAbi, provider);
+        const [ethFee, flwFee] = await campaign.getFeeBalances();
+        totalEth = totalEth.add(ethFee);
+        totalFlw = totalFlw.add(flwFee);
+      }
+
+      setTotalUncollectedEthFees(ethers.utils.formatEther(totalEth));
+      setTotalUncollectedFlwFees(ethers.utils.formatUnits(totalFlw, 18));
+      setStatus("Uncollected fees loaded.");
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to load uncollected fees: " + err.message);
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -150,6 +190,11 @@ function FreeFlowOwnerPanel() {
             <button onClick={handleDistributeFLW} style={buttonStyle}>Distribute FLW</button>
 
             <p><strong>ETH in contract:</strong> {ethBalance} ETH</p>
+            <h4 style={{ marginTop: "2rem" }}>Uncollected Campaign Fees</h4>
+            <button onClick={handlePreviewUncollectedFees} style={buttonStyle}>Preview Uncollected Fees</button>
+            <p><strong>Total ETH Fees (Pending):</strong> {totalUncollectedEthFees} ETH</p>
+            <p><strong>Total FLW Fees (Pending):</strong> {totalUncollectedFlwFees} FLW</p>
+
             <button onClick={handleDistributeETH} style={buttonStyle}>Distribute ETH</button>
 
             <h4 style={{ marginTop: "2rem" }}>Distribute Custom Token</h4>

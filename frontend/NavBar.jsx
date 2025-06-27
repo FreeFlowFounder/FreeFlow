@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
 function NavBar() {
-  const OWNER_ADDRESS = "0x535f7b11e4F9B77d8ef04A564e09E0B4feE75fb3";
+  const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS;
   const [connectedWallet, setConnectedWallet] = useState("");
 
   useEffect(() => {

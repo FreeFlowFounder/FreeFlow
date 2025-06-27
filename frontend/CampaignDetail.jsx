@@ -28,6 +28,8 @@ const erc20Abi = [
 ];
 
 function CampaignDetail() {
+  const allowFLW = import.meta.env.VITE_ALLOW_FLW === "true";
+
   const { address } = useParams();
   const [goal, setGoal] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -185,9 +187,15 @@ function CampaignDetail() {
           <label>Select Token: </label>
           <select value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)}>
             <option value="ETH">ETH</option>
-            <option value="USDC">USDC</option>
+            <option value="USDC">USDC</option>{allowFLW && <option value="FLW">FLW</option>}
           </select>
           <button onClick={donate} style={buttonStyle}>Donate</button>
+        {!allowFLW && (
+          <p style={{ fontSize: "0.9rem", color: "gray" }}>
+            FLW donations will be enabled once the token is live.
+          </p>
+        )}
+
         </div>
 
         {isOwner && isEnded && (
