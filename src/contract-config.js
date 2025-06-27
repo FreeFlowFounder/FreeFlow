@@ -1,4 +1,4 @@
-export const NETWORK = "testnet"; // Change to "mainnet" when ready
+export const NETWORK = import.meta.env.VITE_NETWORK || "testnet";
 
 export const CONTRACTS = {
   FLW: {
