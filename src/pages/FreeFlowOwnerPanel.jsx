@@ -175,6 +175,24 @@ function FreeFlowOwnerPanel() {
       setStatus("Update failed: " + err.message);
     }
   }
+  async function handleCollectAllFees() {
+  try {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const factoryAddress = getAddress("CampaignFactory");
+    const factoryAbiExtended = [
+      "function collectFeesFromAllCampaigns(address to) external"
+    ];
+    const factory = new ethers.Contract(factoryAddress, factoryAbiExtended, signer);
+    const tx = await factory.collectFeesFromAllCampaigns(feeDistributorAddress);
+    setStatus("Collecting all fees from campaigns...");
+    await tx.wait();
+    setStatus("All campaign fees collected to FeeDistributor.");
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to collect campaign fees: " + err.message);
+  }
+}
 
   return (
     <PageContainer>
@@ -195,6 +213,7 @@ function FreeFlowOwnerPanel() {
             <p><strong>Total ETH Fees (Pending):</strong> {totalUncollectedEthFees} ETH</p>
             <p><strong>Total FLW Fees (Pending):</strong> {totalUncollectedFlwFees} FLW</p>
 
+            <button onClick={handleCollectAllFees} style={buttonStyle}>Collect All Campaign Fees</button>
             <button onClick={handleDistributeETH} style={buttonStyle}>Distribute ETH</button>
 
             <h4 style={{ marginTop: "2rem" }}>Distribute Custom Token</h4>
