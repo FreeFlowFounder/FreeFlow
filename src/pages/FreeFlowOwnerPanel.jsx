@@ -184,7 +184,9 @@ function FreeFlowOwnerPanel() {
       "function collectFeesFromAllCampaigns(address to) external"
     ];
     const factory = new ethers.Contract(factoryAddress, factoryAbiExtended, signer);
-    const tx = await factory.collectFeesFromAllCampaigns(feeDistributorAddress);
+    const tx = await factory.collectFeesFromAllCampaigns(feeDistributorAddress, {
+  gasLimit: 3000000
+});
     setStatus("Collecting all fees from campaigns...");
     await tx.wait();
     setStatus("All campaign fees collected to FeeDistributor.");
