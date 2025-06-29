@@ -12,7 +12,7 @@ const campaignAbi = [
   "function title() view returns (string)",
   "function imageUrl() view returns (string)",
   "function deadline() view returns (uint256)",
-  "function owner() view returns (address)"
+  "function campaignOwner() view returns (address)"
 ];
 
 function MyCampaigns() {
@@ -34,7 +34,7 @@ function MyCampaigns() {
         const details = await Promise.all(
           addresses.map(async (addr) => {
             const campaign = new ethers.Contract(addr, campaignAbi, provider);
-            const owner = await campaign.owner();
+            const owner = await campaign.campaignOwner();
             if (owner.toLowerCase() !== currentUser.toLowerCase()) return null;
             const title = await campaign.title();
             const imageUrl = await campaign.imageUrl();
