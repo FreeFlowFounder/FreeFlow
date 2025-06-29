@@ -59,11 +59,15 @@ function FreeFlowOwnerPanel() {
       let totalFlw = ethers.BigNumber.from(0);
 
       for (let addr of campaigns) {
-        const campaign = new ethers.Contract(addr, campaignAbi, provider);
-        const [ethFee, flwFee] = await campaign.getFeeBalances();
-        totalEth = totalEth.add(ethFee);
-        totalFlw = totalFlw.add(flwFee);
-      }
+  try {
+    const campaign = new ethers.Contract(addr, campaignAbi, provider);
+    const [ethFee, flwFee] = await campaign.getFeeBalances();
+    totalEth = totalEth.add(ethFee);
+    totalFlw = totalFlw.add(flwFee);
+  } catch (err) {
+    console.warn("Skipping campaign (could not read fees):", addr, err.message);
+  }
+}
 
       setTotalUncollectedEthFees(ethers.utils.formatEther(totalEth));
       setTotalUncollectedFlwFees(ethers.utils.formatUnits(totalFlw, 18));
