@@ -12,7 +12,7 @@ const campaignAbi = [
   "function title() view returns (string)",
   "function imageUrl() view returns (string)",
   "function deadline() view returns (uint256)",
-  "function owner() view returns (address)"
+  "function campaignOwner() view returns (address)"
 ];
 
 function Campaigns() {
@@ -33,7 +33,7 @@ function Campaigns() {
             const title = await campaign.title();
             const imageUrl = await campaign.imageUrl();
             const deadline = (await campaign.deadline()).toNumber() * 1000;
-            const owner = await campaign.owner();
+            const owner = await campaign.campaignOwner();
 
             return { address: addr, title, imageUrl, deadline, owner };
           })
