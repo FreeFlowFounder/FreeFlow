@@ -14,7 +14,7 @@ export const CONTRACTS = {
     mainnet: "0xYourMainnetStakingAddress",
   },
   CampaignFactory: {
-    testnet: "0x2b5a77df2bd526b3fa9630e6c98d6e3a2785f76c",
+    testnet: "0xb7fcfdff9e396f1c0c7bea1a3d6acae5116bf763",
     mainnet: "0xYourMainnetFactoryAddress",
   },
   FeeDistributor: {
