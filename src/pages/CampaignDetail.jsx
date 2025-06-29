@@ -7,7 +7,7 @@ import PageContainer from "../components/PageContainer";
 const campaignAbi = [
   "function goal() view returns (uint256)",
   "function deadline() view returns (uint256)",
-  "function owner() view returns (address)",
+  "function campaignOwner() view returns (address)",
   "function title() view returns (string)",
   "function description() view returns (string)",
   "function imageUrl() view returns (string)",
@@ -60,7 +60,7 @@ function CampaignDetail() {
 
       const signer = provider.getSigner();
       const currentUser = await signer.getAddress();
-      const campaignOwner = await campaign.owner();
+      const campaignOwner = await campaign.campaignOwner();
       setIsOwner(currentUser.toLowerCase() === campaignOwner.toLowerCase());
 
       const ethBalance = await provider.getBalance(address);
