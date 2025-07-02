@@ -103,7 +103,7 @@ function NavBar() {
         <div className="hidden md:flex gap-6 items-center">
           {navLinks}
           {connectedWallet ? (
-            <div className="flex items-center gap-2 text-sm text-gray-300 border border-gray-500 rounded px-2 py-1">
+            <div className="flex items-center gap-2 text-sm text-white border border-gray-500 rounded px-2 py-1">
               🦊 {shortenAddress(connectedWallet)}
               <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
                 Disconnect
@@ -119,23 +119,31 @@ function NavBar() {
           )}
         </div>
 
+        {/* Hamburger icon (mobile only) */}
         <div className="md:hidden text-2xl cursor-pointer" onClick={() => setDrawerOpen(true)}>
           ☰
         </div>
       </div>
 
+      {/* Mobile drawer backdrop */}
       {drawerOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-40" onClick={() => setDrawerOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-40"
+          onClick={() => setDrawerOpen(false)}
+        />
       )}
 
-      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] z-50 p-6 transform transition-transform duration-300 ease-in-out ${drawerOpen ? "translate-x-0" : "translate-x-full"} flex flex-col gap-4`}>
+      {/* Mobile drawer panel (md:hidden!) */}
+      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] z-50 p-6 transform transition-transform duration-300 ease-in-out ${
+        drawerOpen ? "translate-x-0" : "translate-x-full"
+      } flex flex-col gap-4 md:hidden`}>
         <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-medium">Menu</h2>
-          <button className="text-2xl" onClick={() => setDrawerOpen(false)}>✕</button>
+          <h2 className="text-lg font-medium text-white">Menu</h2>
+          <button className="text-2xl text-white" onClick={() => setDrawerOpen(false)}>✕</button>
         </div>
         {navLinks}
         {connectedWallet ? (
-          <div className="text-sm text-gray-300 border border-gray-500 rounded px-2 py-1 mt-4">
+          <div className="text-sm text-white border border-gray-500 rounded px-2 py-1 mt-4">
             🦊 {shortenAddress(connectedWallet)}
             <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-2 hover:underline">Disconnect</button>
           </div>
@@ -152,14 +160,14 @@ function NavBar() {
         )}
       </div>
 
-      {/* ⚠ Wrong Network Warning */}
+      {/* Network warning */}
       {connectedWallet && chainId && chainId !== EXPECTED_CHAIN_ID && (
         <div className="bg-red-600 text-white text-sm px-4 py-2 text-center">
-          ⚠ You are connected to the wrong network. Please switch to {EXPECTED_CHAIN_ID === 8453 ? "Base Mainnet" : "Base Sepolia"}.
+          ⚠ You're connected to the wrong network. Please switch to {EXPECTED_CHAIN_ID === 8453 ? "Base Mainnet" : "Base Sepolia"}.
         </div>
       )}
 
-      {/* ✅ Toast */}
+      {/* Toast notification */}
       {toast && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded shadow z-50">
           {toast}
@@ -170,6 +178,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
