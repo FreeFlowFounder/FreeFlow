@@ -81,7 +81,7 @@ function NavBar() {
             Admin
           </Link>
         )}
-      <Link to="/about" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>About</Link>
+      <Link to="/about" className="text-white no-underline visited:text-white active:text-white hover:underline" onClick={() => setDrawerOpen(false)}>About</Link>
       <Link to="/campaigns" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Browse</Link>
       <Link to="/create" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
       {connectedWallet && (
