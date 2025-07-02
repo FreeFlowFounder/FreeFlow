@@ -108,8 +108,8 @@ function NavBar() {
           </div>
 
           {connectedWallet ? (
-            <div className="text-base font-semibold text-white border border-white rounded px-3 py-2 bg-[#102d5c]">
-              <span className="text-white">🦊 {shortenAddress(connectedWallet)}</span>
+            <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1 bg-[#102d5c]">
+              <span className="text-white font-mono tracking-tight">🦊 {shortenAddress(connectedWallet)}</span>
               <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
                 Disconnect
               </button>
@@ -125,11 +125,13 @@ function NavBar() {
         </div>
 
         {/* Hamburger icon (mobile only) */}
-        <Bars3Icon
-          aria-label="Open menu"
-          className="w-6 h-6 text-white md:hidden cursor-pointer"
-          onClick={() => setDrawerOpen(true)}
-        />
+        <div className="block md:hidden">
+          <Bars3Icon
+            aria-label="Open menu"
+            className="w-6 h-6 text-white cursor-pointer"
+            onClick={() => setDrawerOpen(true)}
+          />
+        </div>
       </div>
 
       {/* Mobile drawer backdrop */}
@@ -140,7 +142,7 @@ function NavBar() {
         />
       )}
 
-      {/* Mobile drawer panel (left-side, slides in) */}
+      {/* Mobile drawer panel */}
       <div className={`fixed top-0 left-0 h-full w-64 bg-[#081c3b] text-white z-50 p-6 transform transition-transform duration-300 ease-in-out ${
         drawerOpen ? "translate-x-0" : "-translate-x-full"
       } flex flex-col gap-4 md:hidden`}>
@@ -154,8 +156,8 @@ function NavBar() {
         </div>
 
         {connectedWallet ? (
-          <div className="text-base font-semibold text-white border border-white rounded px-3 py-2 bg-[#102d5c]">
-            <span className="text-white">🦊 {shortenAddress(connectedWallet)}</span>
+          <div className="flex flex-col gap-1 text-base font-semibold text-white border border-white rounded px-3 py-2 mt-4 bg-[#102d5c]">
+            <span className="text-white font-mono tracking-tight">🦊 {shortenAddress(connectedWallet)}</span>
             <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-1 hover:underline">
               Disconnect
             </button>
@@ -191,6 +193,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
