@@ -1,25 +1,19 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { connectWithWalletConnect, connectWithCoinbase } from "../utils/walletConnectors";
 
 function NavBar() {
-  const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS;
+  const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS || "";
   const EXPECTED_CHAIN_ID = import.meta.env.VITE_NETWORK === "testnet" ? 84532 : 8453;
+
   const [connectedWallet, setConnectedWallet] = useState("");
-  const [walletSource, setWalletSource] = useState(""); // "metamask", "walletconnect", "coinbase"
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showWalletOptions, setShowWalletOptions] = useState(false);
   const [toast, setToast] = useState("");
   const [chainId, setChainId] = useState(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("walletAddress");
-    const source = localStorage.getItem("walletSource");
-    if (saved) {
-      setConnectedWallet(saved);
-      setWalletSource(source);
-    }
+    if (saved) setConnectedWallet(saved);
 
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", (accounts) => {
@@ -62,11 +56,8 @@ function NavBar() {
         const accounts = await provider.send("eth_requestAccounts", []);
         setConnectedWallet(accounts[0]);
         localStorage.setItem("walletAddress", accounts[0]);
-        localStorage.setItem("walletSource", "metamask");
-        setWalletSource("metamask");
-        setShowWalletOptions(false);
-        checkChain();
         showToast("Connected with MetaMask");
+        checkChain();
       } catch (err) {
         console.error("User rejected MetaMask connection");
       }
@@ -75,61 +66,21 @@ function NavBar() {
     }
   };
 
-  const connectWalletConnect = async () => {
-    try {
-      const provider = await connectWithWalletConnect();
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
-      setConnectedWallet(address);
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("walletSource", "walletconnect");
-      setWalletSource("walletconnect");
-      setShowWalletOptions(false);
-      showToast("Connected with WalletConnect");
-    } catch (err) {
-      console.error("WalletConnect error:", err);
-    }
-  };
-
-  const connectCoinbase = async () => {
-    try {
-      const provider = await connectWithCoinbase();
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
-      setConnectedWallet(address);
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("walletSource", "coinbase");
-      setWalletSource("coinbase");
-      setShowWalletOptions(false);
-      showToast("Connected with Coinbase Wallet");
-    } catch (err) {
-      console.error("Coinbase Wallet error:", err);
-    }
-  };
-
   const disconnectWallet = () => {
     setConnectedWallet("");
-    setWalletSource("");
     localStorage.removeItem("walletAddress");
-    localStorage.removeItem("walletSource");
-    setShowWalletOptions(false);
     showToast("Disconnected");
-  };
-
-  const getWalletIcon = () => {
-    if (walletSource === "metamask") return "🦊";
-    if (walletSource === "walletconnect") return "🔗";
-    if (walletSource === "coinbase") return "🪪";
-    return "";
   };
 
   const navLinks = (
     <>
-      {connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
-        <Link to="/admin" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
-          Admin
-        </Link>
-      )}
+      {connectedWallet &&
+        OWNER_ADDRESS &&
+        connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
+          <Link to="/admin" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
+            Admin
+          </Link>
+        )}
       <Link to="/about" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>About</Link>
       <Link to="/campaigns" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Browse</Link>
       <Link to="/create" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
@@ -153,28 +104,18 @@ function NavBar() {
           {navLinks}
           {connectedWallet ? (
             <div className="flex items-center gap-2 text-sm text-gray-300 border border-gray-500 rounded px-2 py-1">
-              <span>{getWalletIcon()}</span>
-              {shortenAddress(connectedWallet)}
+              🦊 {shortenAddress(connectedWallet)}
               <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
                 Disconnect
               </button>
             </div>
           ) : (
-            <div className="relative">
-              <button
-                onClick={() => setShowWalletOptions(!showWalletOptions)}
-                className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
-              >
-                Connect Wallet
-              </button>
-              {showWalletOptions && (
-                <div className="absolute right-0 mt-2 w-44 bg-white text-[#081c3b] shadow-lg rounded text-sm z-50">
-                  <button onClick={connectMetaMask} className="block w-full text-left px-4 py-2 hover:bg-gray-100">MetaMask</button>
-                  <button onClick={connectWalletConnect} className="block w-full text-left px-4 py-2 hover:bg-gray-100">WalletConnect</button>
-                  <button onClick={connectCoinbase} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Coinbase Wallet</button>
-                </div>
-              )}
-            </div>
+            <button
+              onClick={connectMetaMask}
+              className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
+            >
+              Connect Wallet
+            </button>
           )}
         </div>
 
@@ -195,27 +136,23 @@ function NavBar() {
         {navLinks}
         {connectedWallet ? (
           <div className="text-sm text-gray-300 border border-gray-500 rounded px-2 py-1 mt-4">
-            <div className="flex items-center justify-between">
-              <span>{getWalletIcon()} {shortenAddress(connectedWallet)}</span>
-              <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">X</button>
-            </div>
+            🦊 {shortenAddress(connectedWallet)}
+            <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-2 hover:underline">Disconnect</button>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 mt-4">
-            <button onClick={connectMetaMask} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
-              Connect MetaMask
-            </button>
-            <button onClick={connectWalletConnect} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
-              WalletConnect
-            </button>
-            <button onClick={connectCoinbase} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
-              Coinbase Wallet
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              connectMetaMask();
+              setDrawerOpen(false);
+            }}
+            className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm mt-4 hover:bg-gray-200"
+          >
+            Connect Wallet
+          </button>
         )}
       </div>
 
-      {/* 🟨 Chain Warning */}
+      {/* ⚠ Wrong Network Warning */}
       {connectedWallet && chainId && chainId !== EXPECTED_CHAIN_ID && (
         <div className="bg-red-600 text-white text-sm px-4 py-2 text-center">
           ⚠ You are connected to the wrong network. Please switch to {EXPECTED_CHAIN_ID === 8453 ? "Base Mainnet" : "Base Sepolia"}.
@@ -233,6 +170,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
