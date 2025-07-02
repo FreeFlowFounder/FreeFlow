@@ -76,3 +76,14 @@ button:focus-visible {
   }
 }
 
+nav a,
+nav a:visited,
+nav a:active {
+  color: white !important;
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
