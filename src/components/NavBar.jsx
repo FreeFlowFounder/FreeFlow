@@ -108,8 +108,8 @@ function NavBar() {
           </div>
 
           {connectedWallet ? (
-            <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1 bg-[#102d5c]">
-              🦊 {shortenAddress(connectedWallet)}
+            <div className="text-base font-semibold text-white border border-white rounded px-3 py-2 bg-[#102d5c]">
+              <span className="text-white">🦊 {shortenAddress(connectedWallet)}</span>
               <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
                 Disconnect
               </button>
@@ -127,7 +127,7 @@ function NavBar() {
         {/* Hamburger icon (mobile only) */}
         <Bars3Icon
           aria-label="Open menu"
-          className="w-8 h-8 text-white md:hidden cursor-pointer"
+          className="w-4 h-4 text-white md:hidden cursor-pointer"
           onClick={() => setDrawerOpen(true)}
         />
       </div>
@@ -154,8 +154,8 @@ function NavBar() {
         </div>
 
         {connectedWallet ? (
-          <div className="flex flex-col gap-1 text-base font-semibold text-white border border-white rounded px-3 py-2 mt-4 bg-[#102d5c]">
-            🦊 {shortenAddress(connectedWallet)}
+          <div className="text-base font-semibold text-white border border-white rounded px-3 py-2 bg-[#102d5c]">
+            <span className="text-white">🦊 {shortenAddress(connectedWallet)}</span>
             <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-1 hover:underline">
               Disconnect
             </button>
