@@ -1,56 +1,238 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { connectWithWalletConnect, connectWithCoinbase } from "../utils/walletConnectors";
 
 function NavBar() {
   const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS;
+  const EXPECTED_CHAIN_ID = import.meta.env.VITE_NETWORK === "testnet" ? 84532 : 8453;
   const [connectedWallet, setConnectedWallet] = useState("");
+  const [walletSource, setWalletSource] = useState(""); // "metamask", "walletconnect", "coinbase"
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showWalletOptions, setShowWalletOptions] = useState(false);
+  const [toast, setToast] = useState("");
+  const [chainId, setChainId] = useState(null);
 
   useEffect(() => {
-    async function checkWallet() {
-      if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
-        const address = await signer.getAddress();
-        setConnectedWallet(address);
-      }
+    const saved = localStorage.getItem("walletAddress");
+    const source = localStorage.getItem("walletSource");
+    if (saved) {
+      setConnectedWallet(saved);
+      setWalletSource(source);
     }
-    checkWallet();
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        if (accounts.length > 0) {
+          setConnectedWallet(accounts[0]);
+          localStorage.setItem("walletAddress", accounts[0]);
+        } else {
+          disconnectWallet();
+        }
+      });
+
+      window.ethereum.on("chainChanged", () => {
+        checkChain();
+      });
+
+      checkChain();
+    }
   }, []);
+
+  const checkChain = async () => {
+    if (window.ethereum) {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const network = await provider.getNetwork();
+      setChainId(network.chainId);
+    }
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  const shortenAddress = (addr) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+
+  const connectMetaMask = async () => {
+    if (window.ethereum) {
+      try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        setConnectedWallet(accounts[0]);
+        localStorage.setItem("walletAddress", accounts[0]);
+        localStorage.setItem("walletSource", "metamask");
+        setWalletSource("metamask");
+        setShowWalletOptions(false);
+        checkChain();
+        showToast("Connected with MetaMask");
+      } catch (err) {
+        console.error("User rejected MetaMask connection");
+      }
+    } else {
+      alert("MetaMask not detected");
+    }
+  };
+
+  const connectWalletConnect = async () => {
+    try {
+      const provider = await connectWithWalletConnect();
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      setConnectedWallet(address);
+      localStorage.setItem("walletAddress", address);
+      localStorage.setItem("walletSource", "walletconnect");
+      setWalletSource("walletconnect");
+      setShowWalletOptions(false);
+      showToast("Connected with WalletConnect");
+    } catch (err) {
+      console.error("WalletConnect error:", err);
+    }
+  };
+
+  const connectCoinbase = async () => {
+    try {
+      const provider = await connectWithCoinbase();
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      setConnectedWallet(address);
+      localStorage.setItem("walletAddress", address);
+      localStorage.setItem("walletSource", "coinbase");
+      setWalletSource("coinbase");
+      setShowWalletOptions(false);
+      showToast("Connected with Coinbase Wallet");
+    } catch (err) {
+      console.error("Coinbase Wallet error:", err);
+    }
+  };
+
+  const disconnectWallet = () => {
+    setConnectedWallet("");
+    setWalletSource("");
+    localStorage.removeItem("walletAddress");
+    localStorage.removeItem("walletSource");
+    setShowWalletOptions(false);
+    showToast("Disconnected");
+  };
+
+  const getWalletIcon = () => {
+    if (walletSource === "metamask") return "🦊";
+    if (walletSource === "walletconnect") return "🔗";
+    if (walletSource === "coinbase") return "🪪";
+    return "";
+  };
+
+  const navLinks = (
+    <>
+      {connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
+        <Link to="/admin" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
+          Admin
+        </Link>
+      )}
+      <Link to="/about" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>About</Link>
+      <Link to="/campaigns" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Browse</Link>
+      <Link to="/create" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
+      {connectedWallet && (
+        <Link to="/my-campaigns" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
+          My Campaigns
+        </Link>
+      )}
+      <Link to="/stake" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Stake/Vouch</Link>
+    </>
+  );
+
   return (
-    <nav style={{ background: "#081c3b", color: "white" }}>
-      <div style={{
-        maxWidth: "900px",       // ✅ limit width
-        margin: "0 auto",         // ✅ center horizontally
-        padding: "1rem 2rem",     // ✅ add spacing inside
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <h1 style={{ margin: 0, fontSize: "1.5rem" }}>
-          <Link to="/" style={{ color: "white", textDecoration: "none" }}>
-            FreeFlow
-          </Link>
+    <nav className="bg-[#081c3b] text-white relative z-50">
+      <div className="max-w-[900px] mx-auto px-6 py-4 flex justify-between items-center">
+        <h1 className="text-xl font-semibold">
+          <Link to="/" className="text-white no-underline">FreeFlow</Link>
         </h1>
-        <div style={{ display: "flex", gap: "1.5rem", fontSize: "1rem" }}>
-          {connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
-  <Link to="/admin" style={{ color: "white", textDecoration: "none" }}>Admin</Link>
-)}
-          <Link to="/about" style={{ color: "white", textDecoration: "none" }}>About</Link>
-          <Link to="/campaigns" style={{ color: "white", textDecoration: "none" }}>Browse</Link>
-          <Link to="/create" style={{ color: "white", textDecoration: "none" }}>Start a Campaign</Link>
-          {connectedWallet && (
-          <Link to="/my-campaigns" style={{ color: "white", textDecoration: "none" }}>
-            My Campaigns
-          </Link>
-)}
-          <Link to="/stake" style={{ color: "white", textDecoration: "none" }}>Stake/Vouch</Link>
+
+        <div className="hidden md:flex gap-6 items-center">
+          {navLinks}
+          {connectedWallet ? (
+            <div className="flex items-center gap-2 text-sm text-gray-300 border border-gray-500 rounded px-2 py-1">
+              <span>{getWalletIcon()}</span>
+              {shortenAddress(connectedWallet)}
+              <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => setShowWalletOptions(!showWalletOptions)}
+                className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
+              >
+                Connect Wallet
+              </button>
+              {showWalletOptions && (
+                <div className="absolute right-0 mt-2 w-44 bg-white text-[#081c3b] shadow-lg rounded text-sm z-50">
+                  <button onClick={connectMetaMask} className="block w-full text-left px-4 py-2 hover:bg-gray-100">MetaMask</button>
+                  <button onClick={connectWalletConnect} className="block w-full text-left px-4 py-2 hover:bg-gray-100">WalletConnect</button>
+                  <button onClick={connectCoinbase} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Coinbase Wallet</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="md:hidden text-2xl cursor-pointer" onClick={() => setDrawerOpen(true)}>
+          ☰
         </div>
       </div>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40" onClick={() => setDrawerOpen(false)} />
+      )}
+
+      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] z-50 p-6 transform transition-transform duration-300 ease-in-out ${drawerOpen ? "translate-x-0" : "translate-x-full"} flex flex-col gap-4`}>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-medium">Menu</h2>
+          <button className="text-2xl" onClick={() => setDrawerOpen(false)}>✕</button>
+        </div>
+        {navLinks}
+        {connectedWallet ? (
+          <div className="text-sm text-gray-300 border border-gray-500 rounded px-2 py-1 mt-4">
+            <div className="flex items-center justify-between">
+              <span>{getWalletIcon()} {shortenAddress(connectedWallet)}</span>
+              <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">X</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 mt-4">
+            <button onClick={connectMetaMask} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
+              Connect MetaMask
+            </button>
+            <button onClick={connectWalletConnect} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
+              WalletConnect
+            </button>
+            <button onClick={connectCoinbase} className="bg-white text-[#081c3b] px-3 py-2 rounded font-medium text-sm hover:bg-gray-200">
+              Coinbase Wallet
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 🟨 Chain Warning */}
+      {connectedWallet && chainId && chainId !== EXPECTED_CHAIN_ID && (
+        <div className="bg-red-600 text-white text-sm px-4 py-2 text-center">
+          ⚠ You are connected to the wrong network. Please switch to {EXPECTED_CHAIN_ID === 8453 ? "Base Mainnet" : "Base Sepolia"}.
+        </div>
+      )}
+
+      {/* ✅ Toast */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded shadow z-50">
+          {toast}
+        </div>
+      )}
     </nav>
   );
 }
 
 export default NavBar;
+
 
 
