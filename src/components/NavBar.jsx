@@ -102,9 +102,10 @@ function NavBar() {
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-6 text-white">
-          <div className="flex gap-6">
-           {navLinks}
-          </div>
+          <div className="flex gap-6 [&_a]:!text-white [&_a:visited]:!text-white [&_a:active]:!text-white [&_a]:no-underline [&_a:hover]:underline">
+            {navLinks}
+        </div>
+
 
         {connectedWallet ? (
           <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
@@ -146,9 +147,10 @@ function NavBar() {
           <h2 className="text-lg font-medium text-white">Menu</h2>
           <button className="text-2xl text-white" onClick={() => setDrawerOpen(false)}>✕</button>
         </div>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 [&_a]:!text-white [&_a:visited]:!text-white [&_a:active]:!text-white [&_a]:no-underline [&_a:hover]:underline">
           {navLinks}
         </div>
+
         {connectedWallet ? (
           <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
             🦊 {shortenAddress(connectedWallet)}
