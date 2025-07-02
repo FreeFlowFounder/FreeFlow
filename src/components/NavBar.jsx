@@ -77,19 +77,19 @@ function NavBar() {
       {connectedWallet &&
         OWNER_ADDRESS &&
         connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
-          <Link to="/admin" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>
+          <Link to="/admin" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>
             Admin
           </Link>
         )}
-      <Link to="/about" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>About</Link>
-      <Link to="/campaigns" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Browse</Link>
-      <Link to="/create" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
+      <Link to="/about" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>About</Link>
+      <Link to="/campaigns" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Browse</Link>
+      <Link to="/create" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
       {connectedWallet && (
-        <Link to="/my-campaigns" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>
+        <Link to="/my-campaigns" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>
           My Campaigns
         </Link>
       )}
-      <Link to="/stake" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Stake/Vouch</Link>
+      <Link to="/stake" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Stake/Vouch</Link>
     </>
   );
 
@@ -97,7 +97,7 @@ function NavBar() {
     <nav className="bg-[#081c3b] text-white relative z-50">
       <div className="max-w-[900px] mx-auto px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-semibold">
-          <Link to="/" className="no-underline !text-white">FreeFlow</Link>
+          <Link to="/" className="!text-white no-underline hover:underline visited:!text-white active:!text-white">FreeFlow</Link>
         </h1>
 
         {/* Desktop links */}
@@ -107,7 +107,7 @@ function NavBar() {
           </div>
 
         {connectedWallet ? (
-          <div className="flex items-center gap-2 text-sm text-white border border-gray-500 rounded px-2 py-1">
+          <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
           🦊 {shortenAddress(connectedWallet)}
           <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
           Disconnect
@@ -125,7 +125,7 @@ function NavBar() {
 
 
         {/* Hamburger icon (mobile only) */}
-        <div className="md:hidden text-2xl cursor-pointer" onClick={() => setDrawerOpen(true)}>
+        <div className="md:hidden text-3xl text-white cursor-pointer" onClick={() => setDrawerOpen(true)}>
           ☰
         </div>
       </div>
@@ -150,7 +150,7 @@ function NavBar() {
           {navLinks}
         </div>
         {connectedWallet ? (
-          <div className="text-sm text-white border border-gray-500 rounded px-2 py-1 mt-4">
+          <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
             🦊 {shortenAddress(connectedWallet)}
             <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-2 hover:underline">Disconnect</button>
           </div>
