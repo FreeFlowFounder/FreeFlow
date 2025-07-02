@@ -77,19 +77,19 @@ function NavBar() {
       {connectedWallet &&
         OWNER_ADDRESS &&
         connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
-          <Link to="/admin" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
+          <Link to="/admin" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>
             Admin
           </Link>
         )}
-      <Link to="/about" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>About</Link>
-      <Link to="/campaigns" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Browse</Link>
-      <Link to="/create" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
+      <Link to="/about" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>About</Link>
+      <Link to="/campaigns" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Browse</Link>
+      <Link to="/create" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
       {connectedWallet && (
-        <Link to="/my-campaigns" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>
+        <Link to="/my-campaigns" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>
           My Campaigns
         </Link>
       )}
-      <Link to="/stake" className="text-white hover:underline" onClick={() => setDrawerOpen(false)}>Stake/Vouch</Link>
+      <Link to="/stake" className="text-white hover:underline !text-white" onClick={() => setDrawerOpen(false)}>Stake/Vouch</Link>
     </>
   );
 
@@ -97,11 +97,11 @@ function NavBar() {
     <nav className="bg-[#081c3b] text-white relative z-50">
       <div className="max-w-[900px] mx-auto px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-semibold">
-          <Link to="/" className="text-white no-underline">FreeFlow</Link>
+          <Link to="/" className="no-underline !text-white">FreeFlow</Link>
         </h1>
 
         {/* Desktop links */}
-        <div className="hidden md:flex gap-6 items-center">
+        <div className="hidden md:flex gap-6 items-center text-white">
           {navLinks}
           {connectedWallet ? (
             <div className="flex items-center gap-2 text-sm text-white border border-gray-500 rounded px-2 py-1">
@@ -134,7 +134,7 @@ function NavBar() {
         />
       )}
 
-      {/* Mobile drawer panel (md:hidden keeps it out of desktop flow) */}
+      {/* Mobile drawer panel (left-side, slides in) */}
       <div className={`fixed top-0 left-0 h-full w-64 bg-[#081c3b] text-white z-50 p-6 transform transition-transform duration-300 ease-in-out ${
         drawerOpen ? "translate-x-0" : "-translate-x-full"
       } flex flex-col gap-4 md:hidden`}>
@@ -142,7 +142,9 @@ function NavBar() {
           <h2 className="text-lg font-medium text-white">Menu</h2>
           <button className="text-2xl text-white" onClick={() => setDrawerOpen(false)}>✕</button>
         </div>
-        {navLinks}
+        <div className="flex flex-col gap-4">
+          {navLinks}
+        </div>
         {connectedWallet ? (
           <div className="text-sm text-white border border-gray-500 rounded px-2 py-1 mt-4">
             🦊 {shortenAddress(connectedWallet)}
@@ -179,6 +181,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
