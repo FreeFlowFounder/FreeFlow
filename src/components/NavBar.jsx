@@ -135,8 +135,8 @@ function NavBar() {
       )}
 
       {/* Mobile drawer panel (md:hidden keeps it out of desktop flow) */}
-      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] text-white z-50 p-6 transform transition-transform duration-300 ease-in-out ${
-        drawerOpen ? "translate-x-0" : "translate-x-full"
+      <div className={`fixed top-0 left-0 h-full w-64 bg-[#081c3b] text-white z-50 p-6 transform transition-transform duration-300 ease-in-out ${
+        drawerOpen ? "translate-x-0" : "-translate-x-full"
       } flex flex-col gap-4 md:hidden`}>
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-lg font-medium text-white">Menu</h2>
