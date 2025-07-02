@@ -80,7 +80,10 @@ function FreeFlowOwnerPanel() {
   }
 
   useEffect(() => {
-    async function init() {
+    init();
+  }, []);
+
+  async function init() {
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
@@ -91,6 +94,7 @@ function FreeFlowOwnerPanel() {
         const flwToken = new ethers.Contract(flwTokenAddress, erc20Abi, provider);
         const balance = await flwToken.balanceOf(feeDistributorAddress);
         setFlwBalance(ethers.utils.formatUnits(balance, 18));
+        
         const usdcToken = new ethers.Contract(usdcTokenAddress, erc20Abi, provider);
         const usdcBal = await usdcToken.balanceOf(feeDistributorAddress);
         setUsdcBalance(ethers.utils.formatUnits(usdcBal, 6)); // USDC has 6 decimals
@@ -101,8 +105,6 @@ function FreeFlowOwnerPanel() {
         console.error(err);
       }
     }
-    init();
-  }, []);
 
   const isOwner = connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase();
 
