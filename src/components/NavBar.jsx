@@ -127,7 +127,7 @@ function NavBar() {
         {/* Hamburger icon (mobile only) */}
         <Bars3Icon
           aria-label="Open menu"
-          className="w-4 h-4 text-white md:hidden cursor-pointer"
+          className="w-6 h-6 text-white md:hidden cursor-pointer"
           onClick={() => setDrawerOpen(true)}
         />
       </div>
