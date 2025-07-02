@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import FreeFlowOwnerPanel from "./pages/FreeFlowOwnerPanel";
 import Home from "./pages/Home";
+import About from "./pages/About";
 import CreateCampaign from "./pages/CreateCampaign";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
@@ -27,6 +28,7 @@ function App() {
             <Routes>
               <Route path="/admin" element={<FreeFlowOwnerPanel />} />
               <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
               <Route path="/create" element={<CreateCampaign />} />
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="/campaign/:address" element={<CampaignDetail />} />

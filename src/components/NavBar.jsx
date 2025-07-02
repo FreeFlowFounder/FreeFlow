@@ -36,6 +36,7 @@ function NavBar() {
           {connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
   <Link to="/admin" style={{ color: "white", textDecoration: "none" }}>Admin</Link>
 )}
+          <Link to="/about" className="hover:underline">About</Link>
           <Link to="/campaigns" style={{ color: "white", textDecoration: "none" }}>Browse</Link>
           <Link to="/create" style={{ color: "white", textDecoration: "none" }}>Start a Campaign</Link>
           {connectedWallet && (
