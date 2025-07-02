@@ -12,7 +12,9 @@ const campaignAbi = [
   "function title() view returns (string)",
   "function imageUrl() view returns (string)",
   "function deadline() view returns (uint256)",
-  "function campaignOwner() view returns (address)"
+  "function campaignOwner() view returns (address)",
+  "function goal() view returns (uint256)",
+  "function getWithdrawableAmount() view returns (uint256,uint256)"
 ];
 
 function Campaigns() {
@@ -29,17 +31,26 @@ function Campaigns() {
 
         const details = await Promise.all(
           addresses.map(async (addr) => {
-            const campaign = new ethers.Contract(addr, campaignAbi, provider);
-            const title = await campaign.title();
-            const imageUrl = await campaign.imageUrl();
-            const deadline = (await campaign.deadline()).toNumber() * 1000;
-            const owner = await campaign.campaignOwner();
+          try {
+      const campaign = new ethers.Contract(addr, campaignAbi, provider);
+      const title = await campaign.title();
+      const imageUrl = await campaign.imageUrl();
+      const deadline = (await campaign.deadline()).toNumber() * 1000;
+      const owner = await campaign.campaignOwner();
+      const goal = await campaign.goal();
+      const [ethAvailable] = await campaign.getWithdrawableAmount();
+      const goalMet = ethAvailable.gte(goal);
 
-            return { address: addr, title, imageUrl, deadline, owner };
+      return { address: addr, title, imageUrl, deadline, owner, goalMet };
+    } catch (err) {
+      console.warn("Skipping campaign (could not load):", addr, err.message);
+      return null;
+    }
           })
         );
 
-        setCampaigns(details);
+        setCampaigns(details.filter(Boolean));
+
       } catch (err) {
         console.error("Error loading campaigns:", err);
       }
@@ -108,6 +119,19 @@ function Campaigns() {
                     <img src={c.imageUrl} alt={c.title} style={imgStyle} />
                   )}
                   <h3>{c.title}</h3>
+                  {c.goalMet && (
+                  <span style={{
+                  backgroundColor: "#2ecc71",
+                  color: "white",
+                  fontSize: "0.7rem",
+                  padding: "0.25rem 0.5rem",
+                  borderRadius: "5px",
+                  marginBottom: "0.5rem",
+                  display: "inline-block"
+                }}>
+                  🎯 Goal Met
+                </span>
+              )}
                   {isEndingSoon && <span style={badgeStyle}>⏳ Ending Soon</span>}
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                     <span style={tokenBadge}>ETH</span>
