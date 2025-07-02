@@ -17,6 +17,7 @@ const campaignAbi = [
   "function donateETH() payable",
   "function donateToken(address token, uint256 amount)",
   "function flwToken() view returns (address)",
+  "function getWithdrawableAmount() view returns (uint256,uint256)",
   "function withdraw()"
 ];
 
@@ -32,10 +33,12 @@ function CampaignDetail() {
 
   const { address } = useParams();
   const [goal, setGoal] = useState("");
+  const [goalMet, setGoalMet] = useState(false);
   const [deadline, setDeadline] = useState("");
   const [status, setStatus] = useState("");
   const [isEnded, setIsEnded] = useState(false);
   const [ethRaised, setEthRaised] = useState("");
+  const progress = Math.min((parseFloat(ethRaised || 0) / parseFloat(goal || 1)) * 100, 100).toFixed(1);
   const [usdTotal, setUsdTotal] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [title, setTitle] = useState("");
@@ -45,15 +48,18 @@ function CampaignDetail() {
   const [selectedToken, setSelectedToken] = useState("ETH");
   const [newUpdate, setNewUpdate] = useState("");
 
+
   let interval;
   async function fetchCampaignData() {
     try {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const campaign = new ethers.Contract(address, campaignAbi, provider);
       const goalWei = await campaign.goal();
-      const deadlineUnix = await campaign.deadline();
-
       setGoal(ethers.utils.formatEther(goalWei));
+      const deadlineUnix = await campaign.deadline();
+      const [ethAvailable] = await campaign.getWithdrawableAmount();
+      setGoalMet(ethAvailable.gte(goalWei));
+
       const deadlineDate = new Date(deadlineUnix.toNumber() * 1000);
       setDeadline(deadlineDate.toLocaleString());
       setIsEnded(deadlineDate < new Date());
@@ -176,12 +182,36 @@ function CampaignDetail() {
     <PageContainer>
       <div style={{ padding: "2rem" }}>
         <h2>{title}</h2>
+        {goalMet && (
+       <span style={goalMetStyle}>🎯 Goal Met</span>
+        )}
         {imageUrl && <img src={imageUrl} alt="Campaign" style={{ maxWidth: "100%", borderRadius: "10px" }} />}
         <p>{description}</p>
         <p><strong>Goal:</strong> {goal} ETH</p>
         <p><strong>Deadline:</strong> {deadline} ({isEnded ? "Ended" : "Active"})</p>
         <p><strong>ETH Raised:</strong> {ethRaised || "0.0000"}</p>
+        <div style={{ margin: "0.5rem 0" }}>
+        <div style={{
+          height: "12px",
+          width: "100%",
+          backgroundColor: "#e0e0e0",
+          borderRadius: "6px",
+          overflow: "hidden",
+          marginBottom: "0.25rem"
+        }}>
+        <div style={{
+          width: `${progress}%`,
+          height: "100%",
+          backgroundColor: "#2ecc71"
+        }} />
+  </div>
+  <p style={{ fontSize: "0.85rem", color: "#333" }}>
+    {progress}% of goal reached
+  </p>
+</div>
+
         <p><strong>Total Raised (USD):</strong> ${usdTotal || "0.00"}</p>
+        
 
         <div style={{ marginTop: "1rem" }}>
           <label>Select Token: </label>
@@ -235,6 +265,17 @@ function CampaignDetail() {
     </PageContainer>
   );
 }
+
+const goalMetStyle = {
+  display: "inline-block",
+  backgroundColor: "#2ecc71",
+  color: "white",
+  fontSize: "0.75rem",
+  padding: "0.25rem 0.5rem",
+  borderRadius: "4px",
+  marginBottom: "0.5rem"
+};
+
 
 const buttonStyle = {
   padding: "0.6rem 1.2rem",
