@@ -100,6 +100,7 @@ function NavBar() {
           <Link to="/" className="text-white no-underline">FreeFlow</Link>
         </h1>
 
+        {/* Desktop links */}
         <div className="hidden md:flex gap-6 items-center">
           {navLinks}
           {connectedWallet ? (
@@ -128,13 +129,13 @@ function NavBar() {
       {/* Mobile drawer backdrop */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-40 z-40"
+          className="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
 
-      {/* Mobile drawer panel (md:hidden!) */}
-      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] z-50 p-6 transform transition-transform duration-300 ease-in-out ${
+      {/* Mobile drawer panel (md:hidden keeps it out of desktop flow) */}
+      <div className={`fixed top-0 right-0 h-full w-64 bg-[#081c3b] text-white z-50 p-6 transform transition-transform duration-300 ease-in-out ${
         drawerOpen ? "translate-x-0" : "translate-x-full"
       } flex flex-col gap-4 md:hidden`}>
         <div className="flex justify-between items-center mb-2">
@@ -178,6 +179,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
