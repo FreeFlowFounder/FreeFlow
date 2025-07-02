@@ -14,6 +14,10 @@ function App() {
     <Router>
       {/* 🔒 Outer wrapper that gets centered by #root */}
       <div style={{ width: "100%" }}>
+        <div className="bg-blue-500 text-white p-4 m-4 rounded">
+  ✅ Tailwind is working!
+</div>
+
         <div
           style={{
             maxWidth: "900px",         // ✅ now this gets centered
