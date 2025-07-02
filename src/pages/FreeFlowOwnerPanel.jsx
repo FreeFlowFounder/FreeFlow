@@ -214,13 +214,14 @@ function FreeFlowOwnerPanel() {
             <button onClick={handleDistributeFLW} style={buttonStyle}>Distribute FLW</button>
 
             <p><strong>ETH in contract:</strong> {ethBalance} ETH</p>
+            <button onClick={handleDistributeETH} style={buttonStyle}>Distribute ETH</button>
             <h4 style={{ marginTop: "2rem" }}>Uncollected Campaign Fees</h4>
             <button onClick={handlePreviewUncollectedFees} style={buttonStyle}>Preview Uncollected Fees</button>
             <p><strong>Total ETH Fees (Pending):</strong> {totalUncollectedEthFees} ETH</p>
             <p><strong>Total FLW Fees (Pending):</strong> {totalUncollectedFlwFees} FLW</p>
 
             <button onClick={handleCollectAllFees} style={buttonStyle}>Collect All Campaign Fees</button>
-            <button onClick={handleDistributeETH} style={buttonStyle}>Distribute ETH</button>
+            
 
             <h4 style={{ marginTop: "2rem" }}>Distribute Custom Token</h4>
             <input
