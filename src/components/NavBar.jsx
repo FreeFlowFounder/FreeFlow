@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { Bars3Icon } from "@heroicons/react/24/solid";
 
 function NavBar() {
   const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS || "";
@@ -81,7 +82,7 @@ function NavBar() {
             Admin
           </Link>
         )}
-      <Link to="/about" className="text-white no-underline visited:text-white active:text-white hover:underline" onClick={() => setDrawerOpen(false)}>About</Link>
+      <Link to="/about" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>About</Link>
       <Link to="/campaigns" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Browse</Link>
       <Link to="/create" className="!text-white no-underline hover:underline visited:!text-white active:!text-white" onClick={() => setDrawerOpen(false)}>Start a Campaign</Link>
       {connectedWallet && (
@@ -104,31 +105,31 @@ function NavBar() {
         <div className="hidden md:flex items-center gap-6 text-white">
           <div className="flex gap-6 [&_a]:!text-white [&_a:visited]:!text-white [&_a:active]:!text-white [&_a]:no-underline [&_a:hover]:underline">
             {navLinks}
+          </div>
+
+          {connectedWallet ? (
+            <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1 bg-[#102d5c]">
+              🦊 {shortenAddress(connectedWallet)}
+              <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={connectMetaMask}
+              className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
+            >
+              Connect Wallet
+            </button>
+          )}
         </div>
-
-
-        {connectedWallet ? (
-          <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
-          🦊 {shortenAddress(connectedWallet)}
-          <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
-          Disconnect
-        </button>
-      </div>
-    ) : (
-    <button
-      onClick={connectMetaMask}
-      className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
-    >
-      Connect Wallet
-    </button>
-  )}
-</div>
-
 
         {/* Hamburger icon (mobile only) */}
-        <div className="md:hidden text-3xl text-white cursor-pointer" onClick={() => setDrawerOpen(true)}>
-          ☰
-        </div>
+        <Bars3Icon
+          aria-label="Open menu"
+          className="w-8 h-8 text-white md:hidden cursor-pointer"
+          onClick={() => setDrawerOpen(true)}
+        />
       </div>
 
       {/* Mobile drawer backdrop */}
@@ -144,17 +145,20 @@ function NavBar() {
         drawerOpen ? "translate-x-0" : "-translate-x-full"
       } flex flex-col gap-4 md:hidden`}>
         <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-medium text-white">Menu</h2>
+          <h2 className="text-xl font-bold text-white">Menu</h2>
           <button className="text-2xl text-white" onClick={() => setDrawerOpen(false)}>✕</button>
         </div>
+
         <div className="flex flex-col gap-4 [&_a]:!text-white [&_a:visited]:!text-white [&_a:active]:!text-white [&_a]:no-underline [&_a:hover]:underline">
           {navLinks}
         </div>
 
         {connectedWallet ? (
-          <div className="flex items-center gap-2 text-base font-semibold text-white border border-white rounded px-3 py-1">
+          <div className="flex flex-col gap-1 text-base font-semibold text-white border border-white rounded px-3 py-2 mt-4 bg-[#102d5c]">
             🦊 {shortenAddress(connectedWallet)}
-            <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-2 hover:underline">Disconnect</button>
+            <button onClick={disconnectWallet} className="block text-xs text-red-400 mt-1 hover:underline">
+              Disconnect
+            </button>
           </div>
         ) : (
           <button
@@ -187,6 +191,7 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
 
