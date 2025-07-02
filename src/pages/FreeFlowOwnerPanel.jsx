@@ -31,6 +31,7 @@ function FreeFlowOwnerPanel() {
   const [connectedWallet, setConnectedWallet] = useState("");
   const [flwBalance, setFlwBalance] = useState("");
   const [ethBalance, setEthBalance] = useState("");
+  const [usdcBalance, setUsdcBalance] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
   const [tokenAmount, setTokenAmount] = useState("");
   const [status, setStatus] = useState("");
@@ -46,7 +47,7 @@ function FreeFlowOwnerPanel() {
 
   const feeDistributorAddress = getAddress("FeeDistributor");
   const flwTokenAddress = getAddress("FLW");
-
+  const usdcTokenAddress = getAddress("USDC");
   
   async function handlePreviewUncollectedFees() {
     try {
@@ -90,6 +91,9 @@ function FreeFlowOwnerPanel() {
         const flwToken = new ethers.Contract(flwTokenAddress, erc20Abi, provider);
         const balance = await flwToken.balanceOf(feeDistributorAddress);
         setFlwBalance(ethers.utils.formatUnits(balance, 18));
+        const usdcToken = new ethers.Contract(usdcTokenAddress, erc20Abi, provider);
+        const usdcBal = await usdcToken.balanceOf(feeDistributorAddress);
+        setUsdcBalance(ethers.utils.formatUnits(usdcBal, 6)); // USDC has 6 decimals
 
         const ethBal = await provider.getBalance(feeDistributorAddress);
         setEthBalance(ethers.utils.formatEther(ethBal));
@@ -137,6 +141,26 @@ function FreeFlowOwnerPanel() {
       setStatus("ETH distribution failed: " + err.message);
     }
   }
+
+  async function handleDistributeUSDC() {
+  try {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const feeDistributor = new ethers.Contract(feeDistributorAddress, feeDistributorAbi, signer);
+
+    const usdc = new ethers.Contract(usdcTokenAddress, erc20Abi, provider);
+    const usdcBal = await usdc.balanceOf(feeDistributorAddress);
+
+    const tx = await feeDistributor.distributeTokenManually(usdcTokenAddress, usdcBal);
+    setStatus("USDC distribution pending...");
+    await tx.wait();
+    setStatus("USDC distribution successful.");
+  } catch (err) {
+    console.error(err);
+    setStatus("USDC distribution failed: " + err.message);
+  }
+}
+
 
   async function handleDistributeToken() {
     try {
@@ -215,6 +239,10 @@ function FreeFlowOwnerPanel() {
 
             <p><strong>ETH in contract:</strong> {ethBalance} ETH</p>
             <button onClick={handleDistributeETH} style={buttonStyle}>Distribute ETH</button>
+
+            <p><strong>USDC in contract:</strong> {usdcBalance} USDC</p>
+            <button onClick={handleDistributeUSDC} style={buttonStyle}>Distribute USDC</button>
+
             <h4 style={{ marginTop: "2rem" }}>Uncollected Campaign Fees</h4>
             <button onClick={handlePreviewUncollectedFees} style={buttonStyle}>Preview Uncollected Fees</button>
             <p><strong>Total ETH Fees (Pending):</strong> {totalUncollectedEthFees} ETH</p>
