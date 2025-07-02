@@ -101,24 +101,28 @@ function NavBar() {
         </h1>
 
         {/* Desktop links */}
-        <div className="hidden md:flex gap-6 items-center text-white">
-          {navLinks}
-          {connectedWallet ? (
-            <div className="flex items-center gap-2 text-sm text-white border border-gray-500 rounded px-2 py-1">
-              🦊 {shortenAddress(connectedWallet)}
-              <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={connectMetaMask}
-              className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
-            >
-              Connect Wallet
-            </button>
-          )}
-        </div>
+        <div className="hidden md:flex items-center gap-6 text-white">
+          <div className="flex gap-6">
+           {navLinks}
+          </div>
+
+        {connectedWallet ? (
+          <div className="flex items-center gap-2 text-sm text-white border border-gray-500 rounded px-2 py-1">
+          🦊 {shortenAddress(connectedWallet)}
+          <button onClick={disconnectWallet} className="text-xs text-red-400 ml-2 hover:underline">
+          Disconnect
+        </button>
+      </div>
+    ) : (
+    <button
+      onClick={connectMetaMask}
+      className="bg-white text-[#081c3b] px-3 py-1 rounded font-medium text-sm hover:bg-gray-200"
+    >
+      Connect Wallet
+    </button>
+  )}
+</div>
+
 
         {/* Hamburger icon (mobile only) */}
         <div className="md:hidden text-2xl cursor-pointer" onClick={() => setDrawerOpen(true)}>
