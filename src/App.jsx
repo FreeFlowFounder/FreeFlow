@@ -12,37 +12,35 @@ import NavBar from "./components/NavBar";
 function App() {
   return (
     <Router>
-      {/* 🔒 Outer wrapper that gets centered by #root */}
-      <div style={{ width: "100%" }}>
-        <div
-          style={{
-            maxWidth: "900px",         // ✅ now this gets centered
-            width: "100%",
-            minHeight: "100vh",
-            backgroundColor: "white",
-            margin: "0 auto", // ✅ THE CENTERING LINE
-          }}
-        >
-          <NavBar />
-          <div style={{ padding: "2rem 1rem" }}>
-            <Routes>
-              <Route path="/admin" element={<FreeFlowOwnerPanel />} />
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/create" element={<CreateCampaign />} />
-              <Route path="/campaigns" element={<Campaigns />} />
-              <Route path="/campaign/:address" element={<CampaignDetail />} />
-              <Route path="/stake" element={<ValidatorPanel />} />
-              <Route path="/my-campaigns" element={<MyCampaigns />} />
-            </Routes>
-          </div>
-        </div>
+      <NavBar /> {/* ✅ Full-width nav outside the page wrapper */}
+
+      <div
+        style={{
+          maxWidth: "900px",         // ✅ page content is centered
+          width: "100%",
+          minHeight: "100vh",
+          backgroundColor: "white",
+          margin: "0 auto",
+          padding: "2rem 1rem",
+        }}
+      >
+        <Routes>
+          <Route path="/admin" element={<FreeFlowOwnerPanel />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/create" element={<CreateCampaign />} />
+          <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/campaign/:address" element={<CampaignDetail />} />
+          <Route path="/stake" element={<ValidatorPanel />} />
+          <Route path="/my-campaigns" element={<MyCampaigns />} />
+        </Routes>
       </div>
     </Router>
   );
 }
 
 export default App;
+
 
 
 
