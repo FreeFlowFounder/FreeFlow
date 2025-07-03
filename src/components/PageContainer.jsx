@@ -5,11 +5,11 @@ function PageContainer({ children }) {
         width: "100%",
         maxWidth: "900px",        // ✅ match NavBar and App
         margin: "0 auto",         // ✅ centers horizontally
-        padding: "2rem 1.5rem",
+        padding: "1.5rem 1.5rem",
         display: "flex",
         flexDirection: "column",
         gap: "1.5rem",
-        backgroundColor: "white", // optional for contrast
+        //backgroundColor: "white", // optional for contrast
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import { ethers } from "ethers";
 function NavBar() {
   const OWNER_ADDRESS = import.meta.env.VITE_OWNER_ADDRESS;
   const [connectedWallet, setConnectedWallet] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     async function checkWallet() {
@@ -17,34 +18,25 @@ function NavBar() {
     }
     checkWallet();
   }, []);
+
   return (
-    <nav style={{ background: "#081c3b", color: "white" }}>
-      <div style={{
-        maxWidth: "900px",       // ✅ limit width
-        margin: "0 auto",         // ✅ center horizontally
-        padding: "1rem 2rem",     // ✅ add spacing inside
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <h1 style={{ margin: 0, fontSize: "1.5rem" }}>
-          <Link to="/" style={{ color: "white", textDecoration: "none" }}>
-            FreeFlow
-          </Link>
+    <nav className="navbar">
+      <div className="nav-container">
+        <h1 className="logo">
+          <Link to="/">FreeFlow</Link>
         </h1>
-        <div style={{ display: "flex", gap: "1.5rem", fontSize: "1rem" }}>
-          {connectedWallet.toLowerCase() === OWNER_ADDRESS.toLowerCase() && (
-  <Link to="/admin" style={{ color: "white", textDecoration: "none" }}>Admin</Link>
-)}
-          <Link to="/about" style={{ color: "white", textDecoration: "none" }}>About</Link>
-          <Link to="/campaigns" style={{ color: "white", textDecoration: "none" }}>Browse</Link>
-          <Link to="/create" style={{ color: "white", textDecoration: "none" }}>Start a Campaign</Link>
-          {connectedWallet && (
-          <Link to="/my-campaigns" style={{ color: "white", textDecoration: "none" }}>
-            My Campaigns
-          </Link>
-)}
-          <Link to="/stake" style={{ color: "white", textDecoration: "none" }}>Stake/Vouch</Link>
+        <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+          ☰
+        </button>
+        <div className={`nav-links ${menuOpen ? "open" : ""}`}>
+          {connectedWallet.toLowerCase() === OWNER_ADDRESS?.toLowerCase() && (
+            <Link to="/admin">Admin</Link>
+          )}
+          <Link to="/about">About</Link>
+          <Link to="/campaigns">Browse</Link>
+          <Link to="/create">Start a Campaign</Link>
+          {connectedWallet && <Link to="/my-campaigns">My Campaigns</Link>}
+          <Link to="/stake">Stake/Vouch</Link>
         </div>
       </div>
     </nav>
@@ -52,5 +44,6 @@ function NavBar() {
 }
 
 export default NavBar;
+
 
 
