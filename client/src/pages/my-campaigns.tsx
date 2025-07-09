@@ -55,6 +55,9 @@ export default function MyCampaigns() {
       
       const campaignAddresses = await factory.getAllCampaigns();
       
+      // Reverse the addresses so newest campaigns (end of array) are processed first
+      const reversedAddresses = [...campaignAddresses].reverse();
+      
       // Use exact ABI from old frontend
       const campaignAbi = [
         "function title() view returns (string)",
@@ -68,8 +71,8 @@ export default function MyCampaigns() {
 
       // Process campaigns one by one to avoid rate limiting
       const myCampaigns: Campaign[] = [];
-      for (let i = 0; i < campaignAddresses.length; i++) {
-        const address = campaignAddresses[i];
+      for (let i = 0; i < reversedAddresses.length; i++) {
+        const address = reversedAddresses[i];
         try {
           const campaignContract = new ethers.Contract(address, campaignAbi, provider);
           
@@ -142,7 +145,7 @@ export default function MyCampaigns() {
             endDate: endDate.toISOString(),
             isActive,
             acceptedTokens: ['ETH', 'USDC'],
-            createdAt: new Date().toISOString(),
+            createdAt: i.toString(), // Use index as proxy for creation order (lower = newer since we reversed)
             progress,
             timeLeft,
             status,
@@ -159,7 +162,15 @@ export default function MyCampaigns() {
         }
       }
 
-      setCampaigns(myCampaigns);
+      // Sort campaigns by creation order (newest first)
+      const sortedCampaigns = myCampaigns.sort((a, b) => {
+        const aCreated = parseInt(a.createdAt);
+        const bCreated = parseInt(b.createdAt);
+        return aCreated - bCreated; // Lower index = newer since we reversed
+      });
+      
+      setCampaigns(sortedCampaigns);
+      console.log('My Campaigns loaded by newest first:', sortedCampaigns.map(c => `${c.title}: ${c.createdAt}`));
       
     } catch (err) {
       console.error('Failed to fetch my campaigns:', err);

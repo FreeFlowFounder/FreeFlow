@@ -60,7 +60,8 @@ export default function Campaigns() {
       const sortedCampaigns = [...campaigns].sort((a, b) => {
         switch (sortBy) {
           case 'newest':
-            return parseInt(b.createdAt) - parseInt(a.createdAt);
+            // Since we use startIndex + i as createdAt (where 0 is newest), lower numbers = newer
+            return parseInt(a.createdAt) - parseInt(b.createdAt);
           case 'ending_soon':
             const aDeadline = new Date(a.endDate).getTime();
             const bDeadline = new Date(b.endDate).getTime();
@@ -209,7 +210,7 @@ export default function Campaigns() {
           endDate: endDate.toISOString(),
           isActive,
           acceptedTokens: ['ETH', 'USDC'],
-          createdAt: (i + 1).toString(), // Use index as proxy for creation order (higher = newer since we reversed)
+          createdAt: (startIndex + i).toString(), // Use actual position in reversed array as creation order
           progress,
           timeLeft,
           status,
@@ -232,6 +233,7 @@ export default function Campaigns() {
     }
     
     console.log(`Loaded ${newCampaigns.length} campaigns (batch ${startIndex}-${endIndex})`);
+    console.log('Campaign creation order:', newCampaigns.map(c => `${c.title}: ${c.createdAt}`));
   };
 
   const loadMoreCampaigns = async () => {
@@ -278,10 +280,10 @@ export default function Campaigns() {
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          // Sort by creation order (newest first) - use array position as proxy
+          // Since we use startIndex + i as createdAt (where 0 is newest), lower numbers = newer
           const aCreated = parseInt(a.createdAt);
           const bCreated = parseInt(b.createdAt);
-          return bCreated - aCreated; // Higher number = newer
+          return aCreated - bCreated; // Lower number = newer
         
         case 'ending_soon':
           // Sort by deadline (ending soonest first, but only for active campaigns)
