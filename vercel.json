@@ -1,8 +1,12 @@
 {
   "buildCommand": "vite build",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "dist",
   "installCommand": "npm install",
   "routes": [
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
