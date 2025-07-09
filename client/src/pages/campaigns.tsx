@@ -102,9 +102,10 @@ export default function Campaigns() {
         return;
       }
       
-      // Load all campaigns first, then sort them properly
-      setSortedAddresses(campaignAddresses);
-      await loadCampaignBatch(campaignAddresses, 0, campaignsToShow);
+      // Reverse the addresses so newest campaigns (end of array) load first
+      const reversedAddresses = [...campaignAddresses].reverse();
+      setSortedAddresses(reversedAddresses);
+      await loadCampaignBatch(reversedAddresses, 0, campaignsToShow);
       
     } catch (err) {
       console.error('Failed to fetch campaigns:', err);
@@ -216,7 +217,7 @@ export default function Campaigns() {
           endDate: endDate.toISOString(),
           isActive,
           acceptedTokens: ['ETH', 'USDC'],
-          createdAt: (addresses.length - i).toString(), // Use index as proxy for creation order (higher = newer)
+          createdAt: (i + 1).toString(), // Use index as proxy for creation order (higher = newer since we reversed)
           progress,
           timeLeft,
           status,
