@@ -97,38 +97,40 @@ export default function MyCampaigns() {
           const cacheKey = `final_balance_${address}`;
           
           if (isActive) {
-            // For active campaigns, ALWAYS use current withdrawable amount (never cache)
+            // For active campaigns, use withdrawable amount
             raisedInEth = ethers.formatEther(ethAvailable);
             progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           } else {
-            // For ended campaigns ONLY, check cache first
+            // For ended campaigns, check cache first, then calculate if needed
+            const cacheKey = `final_balance_${address}`;
             const cachedData = localStorage.getItem(cacheKey);
+            
             if (cachedData) {
               try {
                 const { balance, progress: cachedProgress } = JSON.parse(cachedData);
                 raisedInEth = balance;
                 progress = cachedProgress;
-                console.log(`Using cached final balance: ${balance} ETH, progress: ${cachedProgress}%`);
+                console.log(`Using cached progress for ended campaign: ${progress}%`);
               } catch (cacheError) {
-                console.warn('Invalid cache data, recalculating:', cacheError);
-                // Fall through to recalculate
+                console.warn('Invalid cache data, recalculating');
+                // Fall through to calculation
               }
             }
             
-            // If no valid cache or cache parsing failed, calculate and cache final progress
-            if (!cachedData || raisedInEth === '0') {
+            // If no cache or cache failed, calculate and cache the final progress
+            if (!cachedData || parseFloat(raisedInEth) === 0) {
               try {
                 const [currentFees] = await campaignContract.getFeeBalances();
                 const totalDonationsReceived = ethAvailable + currentFees;
                 raisedInEth = ethers.formatEther(totalDonationsReceived);
                 progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
                 
-                // Cache the final values
+                // Cache the final values for future use
                 localStorage.setItem(cacheKey, JSON.stringify({
                   balance: raisedInEth,
                   progress: progress
                 }));
-                console.log(`Caching final balance: ${raisedInEth} ETH, progress: ${progress}%`);
+                console.log(`Cached final progress for ended campaign: ${progress}%`);
               } catch (error) {
                 console.log('Could not get fees for ended campaign, using withdrawable amount');
                 raisedInEth = ethers.formatEther(ethAvailable);

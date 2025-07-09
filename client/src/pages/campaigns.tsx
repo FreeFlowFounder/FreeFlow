@@ -50,26 +50,7 @@ export default function Campaigns() {
     return () => clearInterval(interval);
   }, []);
 
-  // Clean up bad cache entries for active campaigns
-  const cleanupBadCacheEntries = (campaignAddresses: string[]) => {
-    campaignAddresses.forEach(address => {
-      const cacheKey = `final_balance_${address}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      if (cachedData) {
-        try {
-          const { balance } = JSON.parse(cachedData);
-          // Remove cache entries that are clearly wrong (0 balance for active campaigns)
-          if (balance === '0' || balance === '0.0') {
-            localStorage.removeItem(cacheKey);
-            console.log(`Cleaned up bad cache entry for ${address}`);
-          }
-        } catch (error) {
-          localStorage.removeItem(cacheKey);
-          console.log(`Removed invalid cache entry for ${address}`);
-        }
-      }
-    });
-  };
+
 
   // Don't refetch campaigns when sort method changes - just re-sort existing campaigns
   useEffect(() => {
@@ -113,9 +94,6 @@ export default function Campaigns() {
       
       const campaignAddresses = await factory.getAllCampaigns();
       console.log('Campaign addresses returned:', campaignAddresses.length);
-      
-      // Clean up any bad cache entries before loading campaigns
-      cleanupBadCacheEntries(campaignAddresses);
       
       setAllCampaignAddresses(campaignAddresses);
       
@@ -169,36 +147,37 @@ export default function Campaigns() {
         const deadlineNum = Number(deadline);
         const isActive = deadlineNum * 1000 > Date.now();
         
-        // Get campaign progress - use cached value ONLY for ended campaigns
+        // Get campaign progress
         let raisedInEth = '0';
         let progress = 0;
         
         const goalInEth = ethers.formatEther(goal);
-        const cacheKey = `final_balance_${address}`;
         
         if (isActive) {
-          // For active campaigns, ALWAYS use current withdrawable amount (never cache)
+          // For active campaigns, use current withdrawable amount
           const withdrawableResult = await campaignContract.getWithdrawableAmount();
           const [ethAvailable] = withdrawableResult;
           raisedInEth = ethers.formatEther(ethAvailable);
           progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
         } else {
-          // For ended campaigns ONLY, check cache first
+          // For ended campaigns, check cache first, then calculate if needed
+          const cacheKey = `final_balance_${address}`;
           const cachedData = localStorage.getItem(cacheKey);
+          
           if (cachedData) {
             try {
               const { balance, progress: cachedProgress } = JSON.parse(cachedData);
               raisedInEth = balance;
               progress = cachedProgress;
-              console.log(`Using cached final balance: ${balance} ETH, progress: ${cachedProgress}%`);
+              console.log(`Using cached progress for ended campaign: ${progress}%`);
             } catch (cacheError) {
-              console.warn('Invalid cache data, recalculating:', cacheError);
-              // Fall through to recalculate
+              console.warn('Invalid cache data, recalculating');
+              // Fall through to calculation
             }
           }
           
-          // If no valid cache or cache parsing failed, calculate and cache final progress
-          if (!cachedData || raisedInEth === '0') {
+          // If no cache or cache failed, calculate and cache the final progress
+          if (!cachedData || parseFloat(raisedInEth) === 0) {
             try {
               const [withdrawableResult, feeResult] = await Promise.all([
                 campaignContract.getWithdrawableAmount(),
@@ -211,12 +190,12 @@ export default function Campaigns() {
               raisedInEth = ethers.formatEther(totalRaised);
               progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
               
-              // Cache the final values
+              // Cache the final values for future use
               localStorage.setItem(cacheKey, JSON.stringify({
                 balance: raisedInEth,
                 progress: progress
               }));
-              console.log(`Caching final balance: ${raisedInEth} ETH, progress: ${progress}%`);
+              console.log(`Cached final progress for ended campaign: ${progress}%`);
             } catch (error) {
               console.warn('Could not calculate final progress for ended campaign:', error);
               // Fallback to contract balance
