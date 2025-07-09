@@ -76,19 +76,49 @@ export default function MyCampaigns() {
         try {
           const campaignContract = new ethers.Contract(address, campaignAbi, provider);
           
-          const owner = await campaignContract.owner();
+          // Check if this is a valid campaign contract first
+          let owner;
+          try {
+            owner = await campaignContract.owner();
+          } catch (error) {
+            console.log(`Skipping invalid campaign contract at ${address}:`, error.message);
+            continue;
+          }
           
           // Only include campaigns owned by the current wallet (like old frontend)
           if (owner.toLowerCase() !== currentUser.toLowerCase()) {
             continue;
           }
 
-          // Fetch data exactly like old frontend
-          const title = await campaignContract.title();
-          const imageUrl = await campaignContract.imageUrl();
-          const deadline = await campaignContract.deadline();
-          const goal = await campaignContract.goal();
-          const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+          // Fetch data with error handling for each field
+          let title, imageUrl, deadline, goal, ethAvailable;
+          
+          try {
+            title = await campaignContract.title();
+            if (!title || title.trim() === '') {
+              console.log(`Campaign ${address} has empty title, skipping`);
+              continue;
+            }
+          } catch (error) {
+            console.log(`Failed to get title for campaign ${address}:`, error.message);
+            continue;
+          }
+          
+          try {
+            imageUrl = await campaignContract.imageUrl();
+          } catch (error) {
+            console.log(`Failed to get imageUrl for campaign ${address}, using default`);
+            imageUrl = '';
+          }
+          
+          try {
+            deadline = await campaignContract.deadline();
+            goal = await campaignContract.goal();
+            [ethAvailable] = await campaignContract.getWithdrawableAmount();
+          } catch (error) {
+            console.log(`Failed to get basic campaign data for ${address}:`, error.message);
+            continue;
+          }
 
           const goalInEth = ethers.formatEther(goal);
           

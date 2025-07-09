@@ -208,41 +208,17 @@ export class ProgressTracker {
   }
 
   static async getTokenPriceUSD(coinGeckoId: string, amount: string): Promise<string> {
-    try {
-      const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`);
-      const data = await response.json();
-      
-      if (data[coinGeckoId] && data[coinGeckoId].usd) {
-        const tokenPrice = data[coinGeckoId].usd;
-        const usdValue = parseFloat(amount) * tokenPrice;
-        return usdValue.toFixed(2);
-      } else {
-        // Fallback prices for when CoinGecko doesn't have the token
-        const fallbackPrices = {
-          'ethereum': 3500,
-          'usd-coin': 1,
-          'freeflow-token': 1 // Placeholder - update with actual FLW price
-        };
-        
-        const fallbackPrice = fallbackPrices[coinGeckoId] || 1;
-        const usdValue = parseFloat(amount) * fallbackPrice;
-        console.warn(`Using fallback price for ${coinGeckoId}: $${fallbackPrice}`);
-        return usdValue.toFixed(2);
-      }
-    } catch (error) {
-      console.error(`Error fetching price for ${coinGeckoId}:`, error);
-      
-      // Emergency fallback prices
-      const emergencyPrices = {
-        'ethereum': 3500,
-        'usd-coin': 1,
-        'freeflow-token': 1
-      };
-      
-      const emergencyPrice = emergencyPrices[coinGeckoId] || 1;
-      const usdValue = parseFloat(amount) * emergencyPrice;
-      return usdValue.toFixed(2);
-    }
+    // Use fallback prices directly to avoid CORS issues in production
+    const fallbackPrices = {
+      'ethereum': 3500,
+      'usd-coin': 1,
+      'freeflow-token': 1
+    };
+    
+    const fallbackPrice = fallbackPrices[coinGeckoId] || 1;
+    const usdValue = parseFloat(amount) * fallbackPrice;
+    console.log(`Using fallback price for ${coinGeckoId}: $${fallbackPrice}`);
+    return usdValue.toFixed(2);
   }
 
   static async convertEthToUSD(ethAmount: string): Promise<string> {
@@ -250,38 +226,19 @@ export class ProgressTracker {
   }
 
   static async convertUSDToEth(usdAmount: string): Promise<string> {
-    try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
-      const data = await response.json();
-      const ethPrice = data.ethereum.usd;
-      const ethValue = parseFloat(usdAmount) / ethPrice;
-      return ethValue.toFixed(6);
-    } catch (error) {
-      console.error('Error fetching ETH price:', error);
-      // Fallback to approximate price
-      return (parseFloat(usdAmount) / 3500).toFixed(6);
-    }
+    // Use fallback price directly to avoid CORS issues in production
+    const ethPrice = 3500;
+    const ethValue = parseFloat(usdAmount) / ethPrice;
+    console.log(`Using fallback ETH price: $${ethPrice}`);
+    return ethValue.toFixed(6);
   }
 
   // FLW-specific price handling
   static async getFLWPriceUSD(amount: string): Promise<string> {
-    try {
-      // Try to get FLW price from CoinGecko (if it gets listed)
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=freeflow&vs_currencies=usd');
-      const data = await response.json();
-      
-      if (data.freeflow && data.freeflow.usd) {
-        const flwPrice = data.freeflow.usd;
-        const usdValue = parseFloat(amount) * flwPrice;
-        return usdValue.toFixed(2);
-      }
-    } catch (error) {
-      console.log('FLW not found on CoinGecko, using configured price');
-    }
-    
-    // Fallback to configured FLW price
+    // Use configured FLW price directly to avoid CORS issues in production
     const configuredFLWPrice = this.getConfiguredFLWPrice();
     const usdValue = parseFloat(amount) * configuredFLWPrice;
+    console.log(`Using configured FLW price: $${configuredFLWPrice}`);
     return usdValue.toFixed(2);
   }
 

@@ -142,13 +142,39 @@ export default function Campaigns() {
       try {
         const campaignContract = new ethers.Contract(address, campaignAbi, provider);
         
-        const [title, imageUrl, deadline, owner, goal] = await Promise.all([
-          campaignContract.title(),
-          campaignContract.imageUrl().catch(() => ''),
-          campaignContract.deadline(), 
-          campaignContract.owner(),
-          campaignContract.goal()
-        ]);
+        // First check if this is a valid campaign contract
+        let owner;
+        try {
+          owner = await campaignContract.owner();
+        } catch (error) {
+          console.log(`Skipping invalid campaign contract at ${address}:`, error.message);
+          continue;
+        }
+        
+        // Get other data with error handling
+        let title, imageUrl, deadline, goal;
+        
+        try {
+          title = await campaignContract.title();
+          if (!title || title.trim() === '') {
+            console.log(`Campaign ${address} has empty title, skipping`);
+            continue;
+          }
+        } catch (error) {
+          console.log(`Failed to get title for campaign ${address}:`, error.message);
+          continue;
+        }
+        
+        try {
+          [imageUrl, deadline, goal] = await Promise.all([
+            campaignContract.imageUrl().catch(() => ''),
+            campaignContract.deadline(),
+            campaignContract.goal()
+          ]);
+        } catch (error) {
+          console.log(`Failed to get basic campaign data for ${address}:`, error.message);
+          continue;
+        }
         
         const deadlineNum = Number(deadline);
         const isActive = deadlineNum * 1000 > Date.now();
