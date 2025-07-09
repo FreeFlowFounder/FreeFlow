@@ -42,7 +42,7 @@ export default function CampaignDetail() {
         const contractAddress = params.id;
         
         // Use a basic provider for reading data (no wallet required)
-        const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
+        const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
         
         const campaignAbi = [
           "function title() view returns (string)",
@@ -51,6 +51,7 @@ export default function CampaignDetail() {
           "function owner() view returns (address)",
           "function goal() view returns (uint256)",
           "function getWithdrawableAmount() view returns (uint256,uint256)",
+          "function getFeeBalances() view returns (uint256,uint256)",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
           "function postUpdate(string memory newUpdate)"
@@ -58,13 +59,35 @@ export default function CampaignDetail() {
         
         const campaignContract = new ethers.Contract(contractAddress, campaignAbi, provider);
         
-        // Fetch campaign data using exact same pattern as Browse Campaigns
-        const title = await campaignContract.title();
-        const imageUrl = await campaignContract.imageUrl();
-        const deadline = await campaignContract.deadline();
-        const owner = await campaignContract.owner();
-        const goal = await campaignContract.goal();
-        const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+        // Fetch campaign data with error handling
+        let title, imageUrl, deadline, owner, goal, ethAvailable;
+        
+        try {
+          owner = await campaignContract.owner();
+        } catch (error) {
+          throw new Error(`Invalid campaign contract: ${error.message}`);
+        }
+        
+        try {
+          title = await campaignContract.title();
+          if (!title || title.trim() === '') {
+            throw new Error('Campaign has no title');
+          }
+        } catch (error) {
+          throw new Error(`Failed to get campaign title: ${error.message}`);
+        }
+        
+        try {
+          [imageUrl, deadline, goal] = await Promise.all([
+            campaignContract.imageUrl().catch(() => ''),
+            campaignContract.deadline(),
+            campaignContract.goal()
+          ]);
+          
+          [ethAvailable] = await campaignContract.getWithdrawableAmount();
+        } catch (error) {
+          throw new Error(`Failed to get campaign data: ${error.message}`);
+        }
         
         const goalInEth = ethers.formatEther(goal);
         const deadlineNum = Number(deadline);
