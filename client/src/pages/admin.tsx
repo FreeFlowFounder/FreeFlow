@@ -446,11 +446,31 @@ export default function Admin() {
       
       setStatus('Attempting factory fee collection...');
       
-      // Call factory method
+      // Try calling without parameter first to check if the function signature is different
       try {
-        const txHash = await factory.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
-        console.log('Factory fee collection transaction sent:', txHash);
-        setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
+        console.log('Checking if factory has different collectFees signature...');
+        const factoryContract = new ethers.Contract(
+          factory.getAddress(),
+          [
+            "function collectFeesFromAllCampaigns() external",
+            "function collectFeesFromAllCampaigns(address) external"
+          ],
+          wallet.signer
+        );
+        
+        // Try without parameter first
+        try {
+          const txHash = await factoryContract.collectFeesFromAllCampaigns();
+          console.log('Factory fee collection (no params) transaction sent:', txHash);
+          setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
+        } catch (noParamError) {
+          console.log('No-param version failed, trying with FeeDistributor address...');
+          
+          // Try with FeeDistributor address
+          const txHash = await factoryContract["collectFeesFromAllCampaigns(address)"](CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
+          console.log('Factory fee collection (with address) transaction sent:', txHash);
+          setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
+        }
       } catch (factoryError) {
         console.error('Factory fee collection failed:', factoryError);
         setStatus('Factory fee collection failed: ' + (factoryError instanceof Error ? factoryError.message : String(factoryError)));
