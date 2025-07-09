@@ -18,6 +18,9 @@ import HowItWorks from "@/pages/how-it-works";
 import Admin from "@/pages/admin";
 import TestFlow from "@/pages/test-flow";
 import ContractDebug from "@/pages/contract-debug";
+import EnvDebug from "@/pages/env-debug";
+import FeeCollectionTest from "@/pages/fee-collection-test";
+import FeeCollectionDebug from "@/pages/fee-collection-debug";
 
 function Router() {
   return (
@@ -34,6 +37,9 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/test-flow" component={TestFlow} />
       <Route path="/debug" component={ContractDebug} />
+      <Route path="/env-debug" component={EnvDebug} />
+      <Route path="/fee-test" component={FeeCollectionTest} />
+      <Route path="/fee-debug" component={FeeCollectionDebug} />
       <Route component={NotFound} />
     </Switch>
   );
