@@ -15,6 +15,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { Campaign } from '@/types/campaign';
 import { ethers } from 'ethers';
+import { ProgressTracker } from '@/lib/progress-tracker';
 
 export default function CampaignDetail() {
   const [, params] = useRoute('/campaign/:id');
@@ -66,26 +67,31 @@ export default function CampaignDetail() {
         const [ethAvailable] = await campaignContract.getWithdrawableAmount();
         
         const goalInEth = ethers.formatEther(goal);
-        
-        // For active campaigns, use withdrawable amount
-        // For ended campaigns, use withdrawable + fees to capture final state
-        let totalDonationsReceived = ethAvailable;
-        
         const deadlineNum = Number(deadline);
         const isActive = deadlineNum * 1000 > Date.now();
         
-        if (!isActive) {
+        // Get blockchain data for sync
+        let blockchainRaised = '0';
+        if (isActive) {
+          blockchainRaised = ethers.formatEther(ethAvailable);
+        } else {
           // Campaign has ended - capture the final state including fees
           try {
             const [currentFees] = await campaignContract.getFeeBalances();
-            totalDonationsReceived = ethAvailable + currentFees;
+            const totalDonationsReceived = ethAvailable + currentFees;
+            blockchainRaised = ethers.formatEther(totalDonationsReceived);
           } catch (error) {
             console.log('Could not get fees for ended campaign, using withdrawable amount');
+            blockchainRaised = ethers.formatEther(ethAvailable);
           }
         }
         
-        const raisedInEth = ethers.formatEther(totalDonationsReceived);
-        const progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+        // Sync with progress tracker
+        await ProgressTracker.syncWithBlockchain(contractAddress, goalInEth, blockchainRaised, isActive);
+        
+        // Get progress from tracker (this will be locked for ended campaigns)
+        const raisedInEth = await ProgressTracker.getTotalRaisedETH(contractAddress);
+        const progress = ProgressTracker.getProgressPercentage(contractAddress);
         const goalMet = progress >= 100;
         const endDate = new Date(deadlineNum * 1000);
         const now = new Date();
@@ -185,6 +191,14 @@ export default function CampaignDetail() {
       // Send donation transaction
       const tx = await campaignContract.donateETH({ value: amountInWei });
       await tx.wait();
+      
+      // Record donation in progress tracker
+      await ProgressTracker.recordDonation(
+        params?.id || '',
+        amount,
+        'ETH',
+        tx.hash
+      );
       
       toast({
         title: 'Donation Successful',

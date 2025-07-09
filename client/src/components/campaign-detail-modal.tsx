@@ -63,47 +63,39 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
       );
       
       const deadline = await campaignContract.deadline();
+      const goal = await campaignContract.goal();
+      const goalInEth = ethers.formatEther(goal);
       const deadlineNum = Number(deadline);
       const isActive = deadlineNum * 1000 > Date.now();
       
-      if (!isActive) {
-        // Campaign has ended - check for cached final balance first
-        const cacheKey = `final_balance_${campaign.contractAddress}`;
-        const cachedData = localStorage.getItem(cacheKey);
-        
-        if (cachedData) {
-          const { balance, progress } = JSON.parse(cachedData);
-          setLockedBalance(balance);
-          setLockedProgress(progress);
-          console.log(`Using cached final balance: ${balance} ETH, progress: ${progress}%`);
-          return;
-        }
-        
-        // No cached data - try to get current balance and cache it
+      // Get blockchain data for sync
+      let blockchainRaised = '0';
+      if (isActive) {
+        const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+        blockchainRaised = ethers.formatEther(ethAvailable);
+      } else {
         try {
           const [ethAvailable] = await campaignContract.getWithdrawableAmount();
           const [currentFees] = await campaignContract.getFeeBalances();
           const totalFinalBalance = ethAvailable + currentFees;
-          const finalBalanceEth = ethers.formatEther(totalFinalBalance);
-          
-          // Calculate locked progress
-          const goal = await campaignContract.goal();
-          const goalInEth = ethers.formatEther(goal);
-          const finalProgress = Math.round((parseFloat(finalBalanceEth) / parseFloat(goalInEth) * 100) * 100) / 100;
-          
-          // Only cache if we have a meaningful balance (not zero after withdrawal)
-          if (parseFloat(finalBalanceEth) > 0) {
-            const cacheData = { balance: finalBalanceEth, progress: finalProgress };
-            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-            console.log(`Caching final balance: ${finalBalanceEth} ETH, progress: ${finalProgress}%`);
-          }
-          
-          setLockedBalance(finalBalanceEth);
-          setLockedProgress(finalProgress);
+          blockchainRaised = ethers.formatEther(totalFinalBalance);
         } catch (error) {
-          console.log('Could not get locked balance, using current campaign data');
+          console.log('Could not get fees for ended campaign, using withdrawable amount');
+          const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+          blockchainRaised = ethers.formatEther(ethAvailable);
         }
       }
+      
+      // Sync with progress tracker
+      await ProgressTracker.syncWithBlockchain(campaign.contractAddress, goalInEth, blockchainRaised, isActive);
+      
+      // Get progress from tracker (this will be locked for ended campaigns)
+      const raisedInEth = await ProgressTracker.getTotalRaisedETH(campaign.contractAddress);
+      const progress = ProgressTracker.getProgressPercentage(campaign.contractAddress);
+      
+      setLockedBalance(raisedInEth);
+      setLockedProgress(progress);
+      
     } catch (error) {
       console.error('Error checking for locked balance:', error);
     }
