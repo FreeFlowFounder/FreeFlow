@@ -440,40 +440,125 @@ export default function Admin() {
         console.log(`Factory owner: ${factoryOwner}`);
         console.log(`Your address: ${wallet.address}`);
         console.log(`Is factory owner: ${factoryOwner.toLowerCase() === wallet.address.toLowerCase()}`);
+        
+        // Check which campaigns you own vs don't own
+        const ownedCampaigns = [];
+        const unownedCampaigns = [];
+        
+        for (const campaignAddress of campaigns) {
+          try {
+            const campaign = new ethers.Contract(campaignAddress, [
+              "function owner() view returns (address)",
+              "function campaignOwner() view returns (address)"
+            ], wallet.provider);
+            
+            let campaignOwner = null;
+            let ownerFunction = 'unknown';
+            
+            // Test both owner functions to see which exists and what they return
+            try {
+              campaignOwner = await campaign.owner();
+              ownerFunction = 'owner()';
+              console.log(`Campaign ${campaignAddress} owner(): ${campaignOwner}`);
+            } catch (ownerErr: any) {
+              console.log(`Campaign ${campaignAddress} owner() failed:`, ownerErr.message);
+            }
+            
+            try {
+              const altOwner = await campaign.campaignOwner();
+              console.log(`Campaign ${campaignAddress} campaignOwner(): ${altOwner}`);
+              
+              if (!campaignOwner) {
+                campaignOwner = altOwner;
+                ownerFunction = 'campaignOwner()';
+              } else if (campaignOwner !== altOwner) {
+                console.log(`🔍 DIFFERENT OWNERS! owner()=${campaignOwner}, campaignOwner()=${altOwner}`);
+                console.log(`🔍 This might be the key - campaignOwner could be the factory owner!`);
+              }
+            } catch (campaignOwnerErr: any) {
+              console.log(`Campaign ${campaignAddress} campaignOwner() failed:`, campaignOwnerErr.message);
+            }
+            
+            if (campaignOwner) {
+              const isOwner = campaignOwner.toLowerCase() === wallet.address.toLowerCase();
+              
+              if (isOwner) {
+                ownedCampaigns.push(campaignAddress);
+              } else {
+                unownedCampaigns.push(campaignAddress);
+              }
+              
+              console.log(`Campaign ${campaignAddress} final owner (${ownerFunction}): ${campaignOwner} (you own: ${isOwner})`);
+            } else {
+              console.log(`Campaign ${campaignAddress} - could not determine owner`);
+            }
+          } catch (err) {
+            console.log(`Could not check ownership of campaign ${campaignAddress}:`, err);
+          }
+        }
+        
+        console.log(`You own ${ownedCampaigns.length} campaigns, ${unownedCampaigns.length} are owned by others`);
+        
+        if (unownedCampaigns.length > 0) {
+          console.log('🔍 INSIGHT: The issue is likely that testnet campaigns were all owned by you');
+          console.log('🔍 On mainnet, campaigns are owned by different users, but contracts still require campaign owner permission');
+          console.log(`Campaigns you own: ${ownedCampaigns.length}, Campaigns by others: ${unownedCampaigns.length}`);
+          console.log('🔍 The factory can only collect fees from campaigns you own, not from others');
+          
+          if (ownedCampaigns.length === 0) {
+            setStatus('No campaigns owned by you found. Factory can only collect fees from campaigns you created.');
+            setIsLoading(false);
+            return;
+          }
+        }
+        
       } catch (err) {
         console.log('Could not check factory owner:', err);
       }
       
-      setStatus('Attempting factory fee collection...');
+      setStatus('Attempting fee collection using testnet method...');
       
-      // Try calling without parameter first to check if the function signature is different
       try {
-        console.log('Checking if factory has different collectFees signature...');
+        const { CONTRACT_ADDRESSES } = await import('@/lib/contracts');
+        
+        // Use the exact same approach as the working testnet admin panel
+        const factoryAbiExtended = [
+          "function collectFeesFromAllCampaigns(address to) external"
+        ];
+        
         const factoryContract = new ethers.Contract(
           factory.getAddress(),
-          [
-            "function collectFeesFromAllCampaigns() external",
-            "function collectFeesFromAllCampaigns(address) external"
-          ],
+          factoryAbiExtended,
           wallet.signer
         );
         
-        // Try without parameter first
-        try {
-          const txHash = await factoryContract.collectFeesFromAllCampaigns();
-          console.log('Factory fee collection (no params) transaction sent:', txHash);
-          setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
-        } catch (noParamError) {
-          console.log('No-param version failed, trying with FeeDistributor address...');
-          
-          // Try with FeeDistributor address
-          const txHash = await factoryContract["collectFeesFromAllCampaigns(address)"](CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
-          console.log('Factory fee collection (with address) transaction sent:', txHash);
-          setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
-        }
+        console.log('🔍 CHANGELOG INSIGHT: Testnet used campaignOwner(), mainnet switched to owner()');
+        console.log('🔍 Fee collection might work if contracts still have campaignOwner() access control');
+        console.log('Using testnet approach: collectFeesFromAllCampaigns with high gas limit...');
+        const tx = await factoryContract.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR, {
+          gasLimit: 3000000 // Same as testnet
+        });
+        
+        console.log('Fee collection transaction sent:', tx.hash);
+        setStatus('Collecting all fees from campaigns...');
+        
+        // Wait for transaction confirmation
+        await tx.wait();
+        setStatus('All campaign fees collected to FeeDistributor.');
+        
       } catch (factoryError) {
         console.error('Factory fee collection failed:', factoryError);
-        setStatus('Factory fee collection failed: ' + (factoryError instanceof Error ? factoryError.message : String(factoryError)));
+        
+        // Decode the exact error to understand the access control issue
+        const errorMessage = factoryError instanceof Error ? factoryError.message : String(factoryError);
+        console.log('Full error details:', factoryError);
+        
+        if (errorMessage.includes('Not owner')) {
+          setStatus(`❌ CONFIRMED: Access control issue - Factory can't call collectAllFees() on campaigns it doesn't own. Error: ${errorMessage}`);
+          console.log('🔍 SOLUTION: The Campaign contract needs to allow factory owner to collect fees, not just campaign owner');
+        } else {
+          setStatus('Factory fee collection failed: ' + errorMessage);
+        }
       }
       
       // Wait a bit longer for transaction to complete
