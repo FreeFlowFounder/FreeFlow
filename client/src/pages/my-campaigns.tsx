@@ -91,10 +91,9 @@ export default function MyCampaigns() {
           const deadlineNum = Number(deadline);
           const isActive = deadlineNum * 1000 > Date.now();
           
-          // Use localStorage caching for ended campaigns to preserve final progress
+          // Simple progress calculation without caching
           let raisedInEth = '0';
           let progress = 0;
-          const cacheKey = `final_balance_${address}`;
           
           if (isActive) {
             // For active campaigns, use withdrawable amount
