@@ -94,19 +94,20 @@ export default function MyCampaigns() {
           // Use localStorage caching for ended campaigns to preserve final progress
           let raisedInEth = '0';
           let progress = 0;
-          const campaignEndKey = `campaign_end_${address}`;
+          const cacheKey = `final_balance_${address}`;
           
           if (isActive) {
             // For active campaigns, use withdrawable amount
             raisedInEth = ethers.formatEther(ethAvailable);
             progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           } else {
-            // For ended campaigns, check if we have cached final progress
-            const cachedData = localStorage.getItem(campaignEndKey);
+            // For ended campaigns, always check cache first
+            const cachedData = localStorage.getItem(cacheKey);
             if (cachedData) {
-              const { finalRaised, finalProgress } = JSON.parse(cachedData);
-              raisedInEth = finalRaised;
-              progress = finalProgress;
+              const { balance, progress: cachedProgress } = JSON.parse(cachedData);
+              raisedInEth = balance;
+              progress = cachedProgress;
+              console.log(`Using cached final balance: ${balance} ETH, progress: ${cachedProgress}%`);
             } else {
               // First time seeing this ended campaign, calculate and cache final progress
               try {
@@ -115,15 +116,22 @@ export default function MyCampaigns() {
                 raisedInEth = ethers.formatEther(totalDonationsReceived);
                 progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
                 
-                // Cache the final values
-                localStorage.setItem(campaignEndKey, JSON.stringify({
-                  finalRaised: raisedInEth,
-                  finalProgress: progress
+                // Always cache the final values, even if zero after withdrawal
+                localStorage.setItem(cacheKey, JSON.stringify({
+                  balance: raisedInEth,
+                  progress: progress
                 }));
+                console.log(`Caching final balance: ${raisedInEth} ETH, progress: ${progress}%`);
               } catch (error) {
                 console.log('Could not get fees for ended campaign, using withdrawable amount');
                 raisedInEth = ethers.formatEther(ethAvailable);
                 progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+                
+                // Cache the fallback values too
+                localStorage.setItem(cacheKey, JSON.stringify({
+                  balance: raisedInEth,
+                  progress: progress
+                }));
               }
             }
           }
