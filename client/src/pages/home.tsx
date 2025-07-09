@@ -75,7 +75,7 @@ export default function Home() {
                   <Coins className="text-freeflow-900 w-6 h-6" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Multi-Chain Support</h3>
-                <p className="text-gray-600">Accept donations in ETH, USDC, and FLW across multiple blockchains</p>
+                <p className="text-gray-600">Accept donations in ETH, USDC, and FLW. Soon across multiple blockchains</p>
               </CardContent>
             </Card>
             
@@ -132,7 +132,7 @@ export default function Home() {
           </div>
           
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-sm text-gray-300">
-            <p>&copy; 2024 FreeFlow. Built for freedom.</p>
+            <p>&copy; 2025 FreeFlow. Built for freedom.</p>
           </div>
         </PageContainer>
       </footer>
