@@ -1,0 +1,428 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: freeflow-frontend@1.0.0
+npm warn Found: @types/react@18.3.23
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn     @radix-ui/react-accordion@"^1.2.4" from the root project
+npm warn   58 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer @types/react@"^18.0.0" from @types/react-dom@18.3.7
+npm warn node_modules/@types/react-dom
+npm warn   peerOptional @types/react-dom@"*" from @radix-ui/react-accordion@1.2.11
+npm warn   node_modules/@radix-ui/react-accordion
+npm warn   37 more (@radix-ui/react-alert-dialog, @radix-ui/react-arrow, ...)
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: freeflow-frontend@1.0.0
+npm error Found: drizzle-orm@0.39.3
+npm error node_modules/drizzle-orm
+npm error   peer drizzle-orm@">=0.36.0" from drizzle-zod@0.7.1
+npm error   node_modules/drizzle-zod
+npm error     drizzle-zod@"^0.5.1" from the root project
+npm error   drizzle-orm@"^0.38.2" from the root project
+npm error
+npm error Could not resolve dependency:
+npm error drizzle-orm@"^0.38.2" from the root project
+npm error
+npm error Conflicting peer dependency: react@19.1.0
+npm error node_modules/react
+npm error   peer react@"^19.1.0" from react-native@0.80.1
+npm error   node_modules/react-native
+npm error     peer react-native@"*" from @op-engineering/op-sqlite@14.1.2
+npm error     node_modules/@op-engineering/op-sqlite
+npm error       peerOptional @op-engineering/op-sqlite@">=2" from drizzle-orm@0.38.4
+npm error       node_modules/drizzle-orm
+npm error         drizzle-orm@"^0.38.2" from the root project
+npm error     peer react-native@"*" from expo-sqlite@15.2.13
+npm error     node_modules/expo-sqlite
+npm error       peerOptional expo-sqlite@">=14.0.0" from drizzle-orm@0.38.4
+npm error       node_modules/drizzle-orm
+npm error         drizzle-orm@"^0.38.2" from the root project
+npm error     4 more (expo, @expo/dom-webview, @expo/metro-runtime, react-native-webview)
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error C:\Users\Travis\AppData\Local\npm-cache\_logs\2025-07-06T14_11_42_041Z-eresolve-report.txt
+npm error A complete log of this run can be found in: C:\Users\Travis\AppData\Local\npm-cache\_logs\2025-07-06T14_11_42_041Z-debug-0.log

@@ -1,0 +1,52 @@
+Direct contract ETH balance: 0.017
+contracts.ts:283 Failed to get deadline: Error: could not decode result data (value="0x", info={ "method": "deadline", "signature": "deadline()" }, code=BAD_DATA, version=6.15.0)
+    at makeError (ethers.js?v=325fab32:337:15)
+    at assert (ethers.js?v=325fab32:350:11)
+    at _Interface.decodeFunctionResult (ethers.js?v=325fab32:12734:5)
+    at staticCallResult (ethers.js?v=325fab32:14841:31)
+    at async staticCall (ethers.js?v=325fab32:14809:20)
+    at async Proxy.deadline (ethers.js?v=325fab32:14846:14)
+    at async CampaignContract.getDeadline (contracts.ts:280:24)
+    at async checkCampaignEnd (balance-display.tsx:47:24)
+getDeadline @ contracts.ts:283
+await in getDeadline
+checkCampaignEnd @ balance-display.tsx:47
+(anonymous) @ balance-display.tsx:39
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=bd0b2ce0:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=bd0b2ce0:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=bd0b2ce0:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=bd0b2ce0:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=bd0b2ce0:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=bd0b2ce0:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=bd0b2ce0:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=bd0b2ce0:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=bd0b2ce0:19432
+commitRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=bd0b2ce0:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:18718
+workLoop @ chunk-RPCDYKBN.js?v=bd0b2ce0:197
+flushWork @ chunk-RPCDYKBN.js?v=bd0b2ce0:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=bd0b2ce0:384
+balance-display.tsx:63 Failed to check campaign deadline: Error: Failed to get deadline
+    at CampaignContract.getDeadline (contracts.ts:284:13)
+    at async checkCampaignEnd (balance-display.tsx:47:24)
+checkCampaignEnd @ balance-display.tsx:63
+await in checkCampaignEnd
+(anonymous) @ balance-display.tsx:39
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=bd0b2ce0:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=bd0b2ce0:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=bd0b2ce0:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=bd0b2ce0:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=bd0b2ce0:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=bd0b2ce0:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=bd0b2ce0:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=bd0b2ce0:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=bd0b2ce0:19432
+commitRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=bd0b2ce0:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=bd0b2ce0:18718
+workLoop @ chunk-RPCDYKBN.js?v=bd0b2ce0:197
+flushWork @ chunk-RPCDYKBN.js?v=bd0b2ce0:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=bd0b2ce0:384
