@@ -35,6 +35,51 @@ export default function FeeCollectionTest() {
     }
   }, [wallet]);
 
+  const testSimpleContractCall = async () => {
+    if (!wallet) return;
+    
+    setLoading(true);
+    setStatus('Testing simple contract calls...');
+    
+    try {
+      const factoryAddress = getAddress("CampaignFactory");
+      const factory = new ethers.Contract(factoryAddress, factoryAbi, wallet.provider);
+      
+      console.log('=== TESTING SIMPLE CONTRACT CALLS ===');
+      
+      // Test read-only calls first
+      try {
+        const campaignCount = await factory.getCampaignCount();
+        console.log('✅ getCampaignCount() works:', campaignCount.toString());
+        
+        const campaigns = await factory.getAllCampaigns();
+        console.log('✅ getAllCampaigns() works:', campaigns.length, 'campaigns');
+        
+        const contractOwner = await factory.owner();
+        console.log('✅ owner() works:', contractOwner);
+        
+        const isOwner = contractOwner.toLowerCase() === wallet.address.toLowerCase();
+        console.log('✅ Ownership check:', isOwner ? 'YOU ARE OWNER' : 'YOU ARE NOT OWNER');
+        
+        if (isOwner) {
+          setStatus('✅ You are the factory owner - but fee collection still fails');
+        } else {
+          setStatus(`❌ You are NOT the factory owner. Owner: ${contractOwner}`);
+        }
+        
+      } catch (error: any) {
+        console.log('❌ Basic contract calls failed:', error.message);
+        setStatus(`❌ Basic contract calls failed: ${error.message}`);
+      }
+      
+    } catch (error: any) {
+      console.error('Simple contract test failed:', error);
+      setStatus(`Simple contract test failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const testOwnershipIssue = async () => {
     if (!wallet) return;
     
@@ -210,7 +255,7 @@ export default function FeeCollectionTest() {
       
       // First check if there are actually fees to collect
       console.log('Checking campaigns for collectable fees...');
-      const campaigns = await loadCampaigns();
+      await loadCampaigns();
       
       let totalFeesToCollect = 0;
       let endedCampaignsWithFees = 0;
@@ -358,6 +403,15 @@ export default function FeeCollectionTest() {
                     variant="secondary"
                   >
                     {loading ? 'Testing...' : 'Test Ownership Issue'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={testSimpleContractCall} 
+                    disabled={loading || !wallet}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {loading ? 'Testing...' : 'Test Simple Contract Call'}
                   </Button>
                   
                   <Button 
