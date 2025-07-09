@@ -66,7 +66,19 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
       const isActive = deadlineNum * 1000 > Date.now();
       
       if (!isActive) {
-        // Campaign has ended - get the final locked balance including fees
+        // Campaign has ended - check for cached final balance first
+        const cacheKey = `final_balance_${campaign.contractAddress}`;
+        const cachedData = localStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+          const { balance, progress } = JSON.parse(cachedData);
+          setLockedBalance(balance);
+          setLockedProgress(progress);
+          console.log(`Using cached final balance: ${balance} ETH, progress: ${progress}%`);
+          return;
+        }
+        
+        // No cached data - try to get current balance and cache it
         try {
           const [ethAvailable] = await campaignContract.getWithdrawableAmount();
           const [currentFees] = await campaignContract.getFeeBalances();
@@ -78,9 +90,15 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
           const goalInEth = ethers.formatEther(goal);
           const finalProgress = Math.round((parseFloat(finalBalanceEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           
+          // Only cache if we have a meaningful balance (not zero after withdrawal)
+          if (parseFloat(finalBalanceEth) > 0) {
+            const cacheData = { balance: finalBalanceEth, progress: finalProgress };
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            console.log(`Caching final balance: ${finalBalanceEth} ETH, progress: ${finalProgress}%`);
+          }
+          
           setLockedBalance(finalBalanceEth);
           setLockedProgress(finalProgress);
-          console.log(`Campaign ended - locked balance: ${finalBalanceEth} ETH, progress: ${finalProgress}%`);
         } catch (error) {
           console.log('Could not get locked balance, using current campaign data');
         }

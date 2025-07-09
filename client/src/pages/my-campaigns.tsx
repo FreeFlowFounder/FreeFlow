@@ -61,7 +61,8 @@ export default function MyCampaigns() {
         "function deadline() view returns (uint256)",
         "function campaignOwner() view returns (address)",
         "function goal() view returns (uint256)",
-        "function getWithdrawableAmount() view returns (uint256,uint256)"
+        "function getWithdrawableAmount() view returns (uint256,uint256)",
+        "function getFeeBalances() view returns (uint256,uint256)"
       ];
 
       // Process campaigns one by one to avoid rate limiting
@@ -87,25 +88,45 @@ export default function MyCampaigns() {
 
           const goalInEth = ethers.formatEther(goal);
           
-          // For active campaigns, use withdrawable amount
-          // For ended campaigns, use withdrawable + fees to capture final state
-          let totalDonationsReceived = ethAvailable;
-          
           const deadlineNum = Number(deadline);
           const isActive = deadlineNum * 1000 > Date.now();
           
-          if (!isActive) {
-            // Campaign has ended - capture the final state including fees
-            try {
-              const [currentFees] = await campaignContract.getFeeBalances();
-              totalDonationsReceived = ethAvailable + currentFees;
-            } catch (error) {
-              console.log('Could not get fees for ended campaign, using withdrawable amount');
+          // Use localStorage caching for ended campaigns to preserve final progress
+          let raisedInEth = '0';
+          let progress = 0;
+          const campaignEndKey = `campaign_end_${address}`;
+          
+          if (isActive) {
+            // For active campaigns, use withdrawable amount
+            raisedInEth = ethers.formatEther(ethAvailable);
+            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+          } else {
+            // For ended campaigns, check if we have cached final progress
+            const cachedData = localStorage.getItem(campaignEndKey);
+            if (cachedData) {
+              const { finalRaised, finalProgress } = JSON.parse(cachedData);
+              raisedInEth = finalRaised;
+              progress = finalProgress;
+            } else {
+              // First time seeing this ended campaign, calculate and cache final progress
+              try {
+                const [currentFees] = await campaignContract.getFeeBalances();
+                const totalDonationsReceived = ethAvailable + currentFees;
+                raisedInEth = ethers.formatEther(totalDonationsReceived);
+                progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+                
+                // Cache the final values
+                localStorage.setItem(campaignEndKey, JSON.stringify({
+                  finalRaised: raisedInEth,
+                  finalProgress: progress
+                }));
+              } catch (error) {
+                console.log('Could not get fees for ended campaign, using withdrawable amount');
+                raisedInEth = ethers.formatEther(ethAvailable);
+                progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+              }
             }
           }
-          
-          const raisedInEth = ethers.formatEther(totalDonationsReceived);
-          const progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           const goalMet = progress >= 100;
           const endDate = new Date(deadlineNum * 1000);
           const now = new Date();
