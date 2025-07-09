@@ -11,7 +11,9 @@ const OWNER_ADDRESS = "0x535f7b11e4F9B77d8ef04A564e09E0B4feE75fb3";
 const factoryAbi = [
   "function getAllCampaigns() view returns (address[])",
   "function collectFeesFromAllCampaigns(address to) external",
-  "function owner() view returns (address)"
+  "function owner() view returns (address)",
+  "function getCampaignCount() view returns (uint256)",
+  "function testMode() view returns (bool)"
 ];
 
 const campaignAbi = [
