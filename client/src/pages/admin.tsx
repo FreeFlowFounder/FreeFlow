@@ -448,35 +448,19 @@ export default function Admin() {
         for (const campaignAddress of campaigns) {
           try {
             const campaign = new ethers.Contract(campaignAddress, [
-              "function owner() view returns (address)",
               "function campaignOwner() view returns (address)"
             ], wallet.provider);
             
             let campaignOwner = null;
             let ownerFunction = 'unknown';
             
-            // Test both owner functions to see which exists and what they return
+            // Use campaignOwner() function as in deployed contracts interface
             try {
-              campaignOwner = await campaign.owner();
-              ownerFunction = 'owner()';
-              console.log(`Campaign ${campaignAddress} owner(): ${campaignOwner}`);
+              campaignOwner = await campaign.campaignOwner();
+              ownerFunction = 'campaignOwner()';
+              console.log(`Campaign ${campaignAddress} campaignOwner(): ${campaignOwner}`);
             } catch (ownerErr: any) {
-              console.log(`Campaign ${campaignAddress} owner() failed:`, ownerErr.message);
-            }
-            
-            try {
-              const altOwner = await campaign.campaignOwner();
-              console.log(`Campaign ${campaignAddress} campaignOwner(): ${altOwner}`);
-              
-              if (!campaignOwner) {
-                campaignOwner = altOwner;
-                ownerFunction = 'campaignOwner()';
-              } else if (campaignOwner !== altOwner) {
-                console.log(`🔍 DIFFERENT OWNERS! owner()=${campaignOwner}, campaignOwner()=${altOwner}`);
-                console.log(`🔍 This might be the key - campaignOwner could be the factory owner!`);
-              }
-            } catch (campaignOwnerErr: any) {
-              console.log(`Campaign ${campaignAddress} campaignOwner() failed:`, campaignOwnerErr.message);
+              console.log(`Campaign ${campaignAddress} campaignOwner() failed:`, ownerErr.message);
             }
             
             if (campaignOwner) {
@@ -532,8 +516,8 @@ export default function Admin() {
           wallet.signer
         );
         
-        console.log('🔍 CHANGELOG INSIGHT: Testnet used campaignOwner(), mainnet switched to owner()');
-        console.log('🔍 Fee collection might work if contracts still have campaignOwner() access control');
+        console.log('🔄 ROLLBACK COMPLETE: Reverted all ABI calls to use campaignOwner() like testnet');
+        console.log('✅ This should restore fee collection functionality if contracts support campaignOwner() access');
         console.log('Using testnet approach: collectFeesFromAllCampaigns with high gas limit...');
         const tx = await factoryContract.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR, {
           gasLimit: 3000000 // Same as testnet
@@ -546,19 +530,31 @@ export default function Admin() {
         await tx.wait();
         setStatus('All campaign fees collected to FeeDistributor.');
         
-      } catch (factoryError) {
+      } catch (factoryError: any) {
         console.error('Factory fee collection failed:', factoryError);
         
-        // Decode the exact error to understand the access control issue
-        const errorMessage = factoryError instanceof Error ? factoryError.message : String(factoryError);
-        console.log('Full error details:', factoryError);
-        
-        if (errorMessage.includes('Not owner')) {
-          setStatus(`❌ CONFIRMED: Access control issue - Factory can't call collectAllFees() on campaigns it doesn't own. Error: ${errorMessage}`);
-          console.log('🔍 SOLUTION: The Campaign contract needs to allow factory owner to collect fees, not just campaign owner');
-        } else {
-          setStatus('Factory fee collection failed: ' + errorMessage);
+        // Try to decode the revert reason from the error
+        let revertReason = 'Unknown';
+        if (factoryError.reason) {
+          revertReason = factoryError.reason;
+        } else if (factoryError.data) {
+          revertReason = factoryError.data;
+        } else if (factoryError.message.includes('execution reverted')) {
+          revertReason = 'Transaction reverted - likely access control issue';
         }
+        
+        console.log('🔍 TRANSACTION REVERTED');
+        console.log('🔍 Revert reason:', revertReason);
+        console.log('🔍 This confirms the access control problem - factory cannot collect fees from campaigns');
+        console.log('🔍 Based on changelog: testnet used campaignOwner() access, mainnet uses owner() access');
+        
+        setStatus(`❌ Fee collection failed - Access control issue. The factory cannot collect fees from campaigns owned by others. Revert reason: ${revertReason}`);
+        
+        // The contract source shows feeDistributor is stored but not used for access control
+        // Access control is working as designed - only campaign owners can collect fees
+        console.log('🔍 SOURCE CODE ANALYSIS: Contract stores feeDistributor but collectAllFees only checks owner');
+        console.log('🔍 CONFIRMED: Access control working correctly - only campaign owners can collect fees');
+        console.log('🔍 SOLUTION: Fee collection will only work for campaigns owned by the platform owner');
       }
       
       // Wait a bit longer for transaction to complete

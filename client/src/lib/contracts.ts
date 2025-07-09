@@ -12,7 +12,8 @@ const CAMPAIGN_FACTORY_ABI = [
   "function flwToken() external view returns (address)",
   "function feeDistributor() external view returns (address)",
   "function collectFeesFromAllCampaigns(address feeDistributorAddress) external",
-  "function owner() external view returns (address)",
+  "function campaignOwner() external view returns (address)",
+  "function getOwner() external view returns (address)",
   "event CampaignCreated(address campaignAddress, address owner, uint256 goal, uint256 deadline, string name)"
 ];
 
@@ -20,7 +21,7 @@ const CAMPAIGN_FACTORY_ABI = [
 const CAMPAIGN_ABI = [
   "function goal() view returns (uint256)",
   "function deadline() view returns (uint256)",
-  "function owner() view returns (address)",
+  "function campaignOwner() view returns (address)",
   "function title() view returns (string)",
   "function description() view returns (string)",
   "function imageUrl() view returns (string)",
@@ -130,9 +131,15 @@ export class CampaignFactoryContract {
 
   async getOwner(): Promise<string> {
     try {
-      return await this.contract.owner();
+      // Try both function names to find the correct one
+      try {
+        return await this.contract.owner();
+      } catch (ownerError) {
+        console.log('owner() failed, trying getOwner()...', ownerError);
+        return await this.contract.getOwner();
+      }
     } catch (error) {
-      console.error('Failed to get factory owner:', error);
+      console.error('Failed to get factory owner with both owner() and getOwner():', error);
       throw new Error('Failed to get factory owner');
     }
   }
@@ -278,7 +285,7 @@ export class CampaignContract {
 
   async getOwner(): Promise<string> {
     try {
-      return await this.contract.owner();
+      return await this.contract.campaignOwner();
     } catch (error) {
       console.error('Failed to get campaign owner:', error);
       throw new Error('Failed to get campaign owner');
