@@ -83,10 +83,33 @@ export default function CampaignDetail() {
             campaignContract.deadline(),
             campaignContract.goal()
           ]);
-          
-          [ethAvailable] = await campaignContract.getWithdrawableAmount();
         } catch (error) {
-          throw new Error(`Failed to get campaign data: ${error.message}`);
+          throw new Error(`Failed to get basic campaign data: ${error.message}`);
+        }
+        
+        // Try multiple approaches to get campaign balance
+        ethAvailable = BigInt(0);
+        
+        // Method 1: Try getWithdrawableAmount() function
+        try {
+          const result = await campaignContract.getWithdrawableAmount();
+          ethAvailable = result[0]; // First element should be ETH amount
+          console.log('✅ getWithdrawableAmount() succeeded:', ethers.formatEther(ethAvailable));
+        } catch (error) {
+          console.log('❌ getWithdrawableAmount() failed:', error.message);
+          
+          // Method 2: Try direct contract balance
+          try {
+            const balance = await provider.getBalance(contractAddress);
+            ethAvailable = balance;
+            console.log('✅ Using direct contract balance:', ethers.formatEther(balance));
+          } catch (balanceError) {
+            console.log('❌ Direct balance check failed:', balanceError.message);
+            
+            // Method 3: Set to zero and continue
+            ethAvailable = BigInt(0);
+            console.log('⚠️ Using zero balance fallback');
+          }
         }
         
         const goalInEth = ethers.formatEther(goal);
@@ -100,11 +123,13 @@ export default function CampaignDetail() {
         } else {
           // Campaign has ended - capture the final state including fees
           try {
-            const [currentFees] = await campaignContract.getFeeBalances();
+            const feeResult = await campaignContract.getFeeBalances();
+            const currentFees = feeResult[0]; // ETH fees
             const totalDonationsReceived = ethAvailable + currentFees;
             blockchainRaised = ethers.formatEther(totalDonationsReceived);
+            console.log('✅ Including fees in ended campaign calculation');
           } catch (error) {
-            console.log('Could not get fees for ended campaign, using withdrawable amount');
+            console.log('❌ Could not get fees for ended campaign, using withdrawable amount only');
             blockchainRaised = ethers.formatEther(ethAvailable);
           }
         }
