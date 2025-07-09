@@ -13,6 +13,7 @@ import { ethers } from 'ethers';
 import { getCampaignContract } from '@/lib/contracts';
 // @ts-ignore
 import { getAddress } from '../lib/contract-config.js';
+import { ProgressTracker } from '../lib/progress-tracker';
 
 export default function MyCampaigns() {
   const { wallet } = useWallet();
@@ -91,27 +92,30 @@ export default function MyCampaigns() {
           const deadlineNum = Number(deadline);
           const isActive = deadlineNum * 1000 > Date.now();
           
-          // Simple progress calculation without caching
-          let raisedInEth = '0';
-          let progress = 0;
+          // Get progress using frontend tracker
+          let blockchainRaised = '0';
           
           if (isActive) {
             // For active campaigns, use withdrawable amount
-            raisedInEth = ethers.formatEther(ethAvailable);
-            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+            blockchainRaised = ethers.formatEther(ethAvailable);
           } else {
             // For ended campaigns, try to get total raised (withdrawable + fees)
             try {
               const [currentFees] = await campaignContract.getFeeBalances();
               const totalDonationsReceived = ethAvailable + currentFees;
-              raisedInEth = ethers.formatEther(totalDonationsReceived);
-              progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+              blockchainRaised = ethers.formatEther(totalDonationsReceived);
             } catch (error) {
               console.log('Could not get fees for ended campaign, using withdrawable amount');
-              raisedInEth = ethers.formatEther(ethAvailable);
-              progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+              blockchainRaised = ethers.formatEther(ethAvailable);
             }
           }
+          
+          // Sync with progress tracker
+          await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
+          
+          // Get progress from tracker (this will be locked for ended campaigns)
+          const raisedInEth = await ProgressTracker.getTotalRaisedETH(address);
+          const progress = ProgressTracker.getProgressPercentage(address);
           const goalMet = progress >= 100;
           const endDate = new Date(deadlineNum * 1000);
           const now = new Date();

@@ -10,6 +10,7 @@ import { Campaign } from '@/types/campaign';
 import { ethers } from 'ethers';
 import { Link } from 'wouter';
 import { getAddress } from '../lib/contract-config';
+import { ProgressTracker } from '../lib/progress-tracker';
 
 // Helper function to format time left
 function formatTimeLeft(milliseconds: number): string {
@@ -148,18 +149,16 @@ export default function Campaigns() {
         const deadlineNum = Number(deadline);
         const isActive = deadlineNum * 1000 > Date.now();
         
-        // Get campaign progress
-        let raisedInEth = '0';
-        let progress = 0;
-        
+        // Get campaign progress using frontend tracker
         const goalInEth = ethers.formatEther(goal);
         
+        // Get current blockchain data for sync
+        let blockchainRaised = '0';
         if (isActive) {
           // For active campaigns, use current withdrawable amount
           const withdrawableResult = await campaignContract.getWithdrawableAmount();
           const [ethAvailable] = withdrawableResult;
-          raisedInEth = ethers.formatEther(ethAvailable);
-          progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+          blockchainRaised = ethers.formatEther(ethAvailable);
         } else {
           // For ended campaigns, try to get total raised (withdrawable + fees)
           try {
@@ -171,27 +170,20 @@ export default function Campaigns() {
             const [ethFees] = feeResult;
             
             const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
-            raisedInEth = ethers.formatEther(totalRaised);
-            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
-            
-            // If total is 0, this might be after withdrawal - try contract balance as fallback
-            if (parseFloat(raisedInEth) === 0) {
-              const contractBalance = await provider.getBalance(address);
-              const balanceEth = ethers.formatEther(contractBalance);
-              // Only use contract balance if it's higher than our calculated total
-              if (parseFloat(balanceEth) > parseFloat(raisedInEth)) {
-                raisedInEth = balanceEth;
-                progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
-              }
-            }
+            blockchainRaised = ethers.formatEther(totalRaised);
           } catch (error) {
-            console.warn('Could not calculate final progress for ended campaign:', error);
-            // Fallback to contract balance
+            console.warn('Could not get blockchain data for ended campaign:', error);
             const contractBalance = await provider.getBalance(address);
-            raisedInEth = ethers.formatEther(contractBalance);
-            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+            blockchainRaised = ethers.formatEther(contractBalance);
           }
         }
+        
+        // Sync with progress tracker
+        await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
+        
+        // Get progress from tracker (this will be locked for ended campaigns)
+        const raisedInEth = await ProgressTracker.getTotalRaisedETH(address);
+        const progress = ProgressTracker.getProgressPercentage(address);
         const goalMet = progress >= 100;
         const endDate = new Date(deadlineNum * 1000);
         

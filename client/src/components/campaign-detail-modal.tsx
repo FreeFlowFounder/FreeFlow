@@ -17,6 +17,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { ethers } from 'ethers';
 import { ENV } from '@/lib/env';
+import { ProgressTracker } from '@/lib/progress-tracker';
 
 interface CampaignDetailModalProps {
   campaign: Campaign | null;
@@ -177,6 +178,14 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         const tx = await campaignContract.donateETH({ value: amountInWei });
         await tx.wait();
         
+        // Record donation in progress tracker
+        await ProgressTracker.recordDonation(
+          campaign.contractAddress || campaign.id,
+          amount,
+          'ETH',
+          tx.hash
+        );
+        
         toast({
           title: 'Donation Successful',
           description: `Successfully donated ${amount} ETH! Transaction confirmed.`,
@@ -216,6 +225,14 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         const donateTx = await campaignContract.donateToken(usdcAddress, amount, 6);
         await wallet.provider.waitForTransaction(donateTx);
         
+        // Record donation in progress tracker
+        await ProgressTracker.recordDonation(
+          campaign.contractAddress || campaign.id,
+          amount,
+          'USDC',
+          donateTx
+        );
+        
         toast({
           title: 'Donation Successful',
           description: `Successfully donated ${amount} USDC! Transaction confirmed.`,
@@ -254,6 +271,14 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         // Step 3: Donate tokens
         const donateTx = await campaignContract.donateToken(flwAddress, amount, 18);
         await wallet.provider.waitForTransaction(donateTx);
+        
+        // Record donation in progress tracker
+        await ProgressTracker.recordDonation(
+          campaign.contractAddress || campaign.id,
+          amount,
+          'FLW',
+          donateTx
+        );
         
         toast({
           title: 'Donation Successful',
