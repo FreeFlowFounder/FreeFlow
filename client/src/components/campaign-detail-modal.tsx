@@ -90,10 +90,12 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
           const goalInEth = ethers.formatEther(goal);
           const finalProgress = Math.round((parseFloat(finalBalanceEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           
-          // Always cache final balance and progress, even if zero after withdrawal
-          const cacheData = { balance: finalBalanceEth, progress: finalProgress };
-          localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-          console.log(`Caching final balance: ${finalBalanceEth} ETH, progress: ${finalProgress}%`);
+          // Only cache if we have a meaningful balance (not zero after withdrawal)
+          if (parseFloat(finalBalanceEth) > 0) {
+            const cacheData = { balance: finalBalanceEth, progress: finalProgress };
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            console.log(`Caching final balance: ${finalBalanceEth} ETH, progress: ${finalProgress}%`);
+          }
           
           setLockedBalance(finalBalanceEth);
           setLockedProgress(finalProgress);

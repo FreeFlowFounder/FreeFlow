@@ -160,49 +160,35 @@ export default function Campaigns() {
           raisedInEth = ethers.formatEther(ethAvailable);
           progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
         } else {
-          // For ended campaigns, check cache first, then calculate if needed
-          const cacheKey = `final_balance_${address}`;
-          const cachedData = localStorage.getItem(cacheKey);
-          
-          if (cachedData) {
-            try {
-              const { balance, progress: cachedProgress } = JSON.parse(cachedData);
-              raisedInEth = balance;
-              progress = cachedProgress;
-              console.log(`Using cached progress for ended campaign: ${progress}%`);
-            } catch (cacheError) {
-              console.warn('Invalid cache data, recalculating');
-              // Fall through to calculation
-            }
-          }
-          
-          // If no cache or cache failed, calculate and cache the final progress
-          if (!cachedData || parseFloat(raisedInEth) === 0) {
-            try {
-              const [withdrawableResult, feeResult] = await Promise.all([
-                campaignContract.getWithdrawableAmount(),
-                campaignContract.getFeeBalances()
-              ]);
-              const [ethWithdrawable] = withdrawableResult;
-              const [ethFees] = feeResult;
-              
-              const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
-              raisedInEth = ethers.formatEther(totalRaised);
-              progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
-              
-              // Cache the final values for future use
-              localStorage.setItem(cacheKey, JSON.stringify({
-                balance: raisedInEth,
-                progress: progress
-              }));
-              console.log(`Cached final progress for ended campaign: ${progress}%`);
-            } catch (error) {
-              console.warn('Could not calculate final progress for ended campaign:', error);
-              // Fallback to contract balance
+          // For ended campaigns, try to get total raised (withdrawable + fees)
+          try {
+            const [withdrawableResult, feeResult] = await Promise.all([
+              campaignContract.getWithdrawableAmount(),
+              campaignContract.getFeeBalances()
+            ]);
+            const [ethWithdrawable] = withdrawableResult;
+            const [ethFees] = feeResult;
+            
+            const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
+            raisedInEth = ethers.formatEther(totalRaised);
+            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+            
+            // If total is 0, this might be after withdrawal - try contract balance as fallback
+            if (parseFloat(raisedInEth) === 0) {
               const contractBalance = await provider.getBalance(address);
-              raisedInEth = ethers.formatEther(contractBalance);
-              progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+              const balanceEth = ethers.formatEther(contractBalance);
+              // Only use contract balance if it's higher than our calculated total
+              if (parseFloat(balanceEth) > parseFloat(raisedInEth)) {
+                raisedInEth = balanceEth;
+                progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
+              }
             }
+          } catch (error) {
+            console.warn('Could not calculate final progress for ended campaign:', error);
+            // Fallback to contract balance
+            const contractBalance = await provider.getBalance(address);
+            raisedInEth = ethers.formatEther(contractBalance);
+            progress = Math.round((parseFloat(raisedInEth) / parseFloat(goalInEth) * 100) * 100) / 100;
           }
         }
         const goalMet = progress >= 100;
