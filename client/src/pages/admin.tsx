@@ -353,18 +353,115 @@ export default function Admin() {
       
       console.log('Calling collectFeesFromAllCampaigns with FeeDistributor:', CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
       
-      // Call collectFeesFromAllCampaigns with FeeDistributor address
-      const txHash = await factory.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
+      // First, check if there are any campaigns with fees
+      const campaigns = await factory.getAllCampaigns();
+      console.log('Found campaigns:', campaigns.length);
       
-      console.log('Transaction sent:', txHash);
-      setStatus(`Fee collection successful! TX: ${txHash.slice(0, 10)}...`);
+      let totalFeesFound = 0;
+      for (const campaignAddress of campaigns) {
+        try {
+          const campaign = new ethers.Contract(
+            campaignAddress,
+            [
+              "function getFeeBalances() view returns (uint256, uint256)",
+              "function ethFeesCollected() view returns (uint256)"
+            ],
+            wallet.provider
+          );
+          
+          const [ethFees] = await campaign.getFeeBalances();
+          const ethFeesCollected = await campaign.ethFeesCollected();
+          
+          console.log(`Campaign ${campaignAddress}: ethFees=${ethers.formatEther(ethFees)}, ethFeesCollected=${ethers.formatEther(ethFeesCollected)}`);
+          totalFeesFound += parseFloat(ethers.formatEther(ethFees));
+        } catch (err) {
+          console.log(`Could not check fees for campaign ${campaignAddress}:`, err);
+        }
+      }
       
-      // Refresh the fee balances after collection
+      console.log('Total fees found across all campaigns:', totalFeesFound);
+      
+      if (totalFeesFound === 0) {
+        setStatus('No fees found in any campaigns to collect');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if campaigns are ended (fees can only be collected after campaign ends)
+      setStatus('Checking campaign states and permissions...');
+      let endedCampaignsWithFees = 0;
+      
+      for (const campaignAddress of campaigns) {
+        try {
+          const campaign = new ethers.Contract(
+            campaignAddress,
+            [
+              "function getFeeBalances() view returns (uint256, uint256)",
+              "function deadline() view returns (uint256)",
+              "function owner() view returns (address)"
+            ],
+            wallet.provider
+          );
+          
+          const [ethFees] = await campaign.getFeeBalances();
+          const deadline = await campaign.deadline();
+          const campaignOwner = await campaign.owner();
+          const now = Math.floor(Date.now() / 1000);
+          const isEnded = now > Number(deadline);
+          
+          if (ethFees > 0) {
+            console.log(`Campaign ${campaignAddress}:`);
+            console.log(`  - ETH fees: ${ethers.formatEther(ethFees)}`);
+            console.log(`  - Deadline: ${deadline} (${isEnded ? 'ENDED' : 'ACTIVE'})`);
+            console.log(`  - Owner: ${campaignOwner}`);
+            console.log(`  - Your address: ${wallet.address}`);
+            console.log(`  - Factory address: ${factory.getAddress()}`);
+            
+            if (isEnded) {
+              endedCampaignsWithFees++;
+            }
+          }
+        } catch (err) {
+          console.log(`Could not check campaign ${campaignAddress}:`, err);
+        }
+      }
+      
+      console.log(`Found ${endedCampaignsWithFees} ended campaigns with fees`);
+      
+      if (endedCampaignsWithFees === 0) {
+        setStatus('No ended campaigns with fees found. Fees can only be collected after campaign ends.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check factory contract permissions
+      try {
+        const factoryOwner = await factory.getOwner();
+        console.log(`Factory owner: ${factoryOwner}`);
+        console.log(`Your address: ${wallet.address}`);
+        console.log(`Is factory owner: ${factoryOwner.toLowerCase() === wallet.address.toLowerCase()}`);
+      } catch (err) {
+        console.log('Could not check factory owner:', err);
+      }
+      
+      setStatus('Attempting factory fee collection...');
+      
+      // Call factory method
+      try {
+        const txHash = await factory.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
+        console.log('Factory fee collection transaction sent:', txHash);
+        setStatus(`Fee collection transaction sent! TX: ${txHash.slice(0, 10)}... (waiting for confirmation)`);
+      } catch (factoryError) {
+        console.error('Factory fee collection failed:', factoryError);
+        setStatus('Factory fee collection failed: ' + (factoryError instanceof Error ? factoryError.message : String(factoryError)));
+      }
+      
+      // Wait a bit longer for transaction to complete
       setTimeout(() => {
         setStatus('Refreshing balances...');
         loadFeeBalances();
         loadUncollectedFees();
-      }, 1500);
+      }, 3000);
       
     } catch (error) {
       console.error('Failed to collect fees:', error);

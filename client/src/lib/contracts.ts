@@ -12,6 +12,7 @@ const CAMPAIGN_FACTORY_ABI = [
   "function flwToken() external view returns (address)",
   "function feeDistributor() external view returns (address)",
   "function collectFeesFromAllCampaigns(address feeDistributorAddress) external",
+  "function owner() external view returns (address)",
   "event CampaignCreated(address campaignAddress, address owner, uint256 goal, uint256 deadline, string name)"
 ];
 
@@ -33,7 +34,8 @@ const CAMPAIGN_ABI = [
   "function getFeeBalances() view returns (uint256,uint256)",
   "function withdraw()",
   "function ethFeesCollected() view returns (uint256)",
-  "function tokenFeesCollected(address) view returns (uint256)"
+  "function tokenFeesCollected(address) view returns (uint256)",
+  "function collectFees(address feeDistributorAddress) external"
 ];
 
 // FeeDistributor ABI (for admin panel)
@@ -124,6 +126,19 @@ export class CampaignFactoryContract {
       console.error('Failed to collect fees from campaigns:', error);
       throw new Error('Failed to collect fees from campaigns');
     }
+  }
+
+  async getOwner(): Promise<string> {
+    try {
+      return await this.contract.owner();
+    } catch (error) {
+      console.error('Failed to get factory owner:', error);
+      throw new Error('Failed to get factory owner');
+    }
+  }
+
+  getAddress(): string {
+    return this.contract.target as string || (this.contract as any).address;
   }
 }
 
