@@ -20,7 +20,8 @@ const campaignAbi = [
   "function getFeeBalances() view returns (uint256,uint256)",
   "function campaignOwner() view returns (address)",
   "function owner() view returns (address)",
-  "function deadline() view returns (uint256)"
+  "function deadline() view returns (uint256)",
+  "function collectAllFees(address to) external"
 ];
 
 export default function FeeCollectionTest() {
@@ -77,6 +78,158 @@ export default function FeeCollectionTest() {
     } catch (error: any) {
       console.error('Simple contract test failed:', error);
       setStatus(`Simple contract test failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testIndividualCampaignFees = async () => {
+    if (!wallet) return;
+    
+    setLoading(true);
+    setStatus('Testing individual campaign fee collection...');
+    
+    try {
+      const factoryAddress = getAddress("CampaignFactory");
+      const feeDistributorAddress = getAddress("FeeDistributor");
+      const factory = new ethers.Contract(factoryAddress, factoryAbi, wallet.provider);
+      const factoryWithSigner = factory.connect(wallet.signer);
+      
+      console.log('=== TESTING INDIVIDUAL CAMPAIGN FEE COLLECTION ===');
+      
+      // Get all campaigns
+      const campaigns = await factory.getAllCampaigns();
+      console.log('Found campaigns:', campaigns.length);
+      
+      if (campaigns.length === 0) {
+        setStatus('❌ No campaigns found to test');
+        return;
+      }
+      
+      // Test each campaign individually
+      for (let i = 0; i < campaigns.length; i++) {
+        const campaignAddress = campaigns[i];
+        console.log(`\n--- Testing Campaign ${i + 1}: ${campaignAddress} ---`);
+        
+        try {
+          const campaign = new ethers.Contract(campaignAddress, campaignAbi, wallet.provider);
+          const campaignWithSigner = campaign.connect(wallet.signer);
+          
+          // Check fees available
+          const [ethFees, flwFees] = await campaign.getFeeBalances();
+          console.log(`Campaign ${i + 1} fees: ETH=${ethers.formatEther(ethFees)}, FLW=${ethers.formatUnits(flwFees, 18)}`);
+          
+          // Check if campaign has ended
+          const deadline = await campaign.deadline();
+          const now = Math.floor(Date.now() / 1000);
+          const isEnded = now > Number(deadline);
+          console.log(`Campaign ${i + 1} ended: ${isEnded} (deadline: ${deadline}, now: ${now})`);
+          
+          // Log campaign status
+          const hasFees = ethFees > 0 || flwFees > 0;
+          console.log(`Campaign ${i + 1} status: hasFees=${hasFees}, ended=${isEnded}`);
+          
+          if (hasFees && isEnded) {
+            console.log(`✅ Campaign ${i + 1} has fees and ended - ready for collection`);
+          } else if (hasFees && !isEnded) {
+            console.log(`⚠️  Campaign ${i + 1} has fees but not ended yet`);
+          } else if (!hasFees && isEnded) {
+            console.log(`⚠️  Campaign ${i + 1} ended but no fees to collect`);
+          } else {
+            console.log(`⚠️  Campaign ${i + 1} no fees and not ended`);
+          }
+          
+        } catch (error: any) {
+          console.log(`❌ Campaign ${i + 1} error:`, error.message);
+          setStatus(`❌ Campaign ${i + 1} (${campaignAddress}) failed: ${error.message}`);
+          return;
+        }
+      }
+      
+      setStatus('✅ All campaigns tested successfully - fee collection should work');
+      
+    } catch (error: any) {
+      console.error('Individual campaign test failed:', error);
+      setStatus(`Individual campaign test failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testCampaignOwnership = async () => {
+    if (!wallet) return;
+    
+    setLoading(true);
+    setStatus('Verifying campaign ownership structure...');
+    
+    try {
+      const factoryAddress = getAddress("CampaignFactory");
+      const factory = new ethers.Contract(factoryAddress, factoryAbi, wallet.provider);
+      
+      console.log('=== VERIFYING CAMPAIGN OWNERSHIP ===');
+      console.log('Factory address:', factoryAddress);
+      console.log('Your wallet:', wallet.address);
+      
+      // Get factory owner
+      const factoryOwner = await factory.owner();
+      console.log('Factory owner:', factoryOwner);
+      
+      // Get all campaigns
+      const campaigns = await factory.getAllCampaigns();
+      console.log('Total campaigns:', campaigns.length);
+      
+      if (campaigns.length === 0) {
+        setStatus('❌ No campaigns found');
+        return;
+      }
+      
+      // Check ownership of each campaign
+      let factoryOwnedCount = 0;
+      let userOwnedCount = 0;
+      let otherOwnedCount = 0;
+      
+      for (let i = 0; i < campaigns.length; i++) {
+        const campaignAddress = campaigns[i];
+        console.log(`\n--- Campaign ${i + 1}: ${campaignAddress} ---`);
+        
+        try {
+          const campaign = new ethers.Contract(campaignAddress, campaignAbi, wallet.provider);
+          const campaignOwner = await campaign.owner();
+          
+          console.log(`Campaign ${i + 1} owner: ${campaignOwner}`);
+          
+          if (campaignOwner.toLowerCase() === factoryAddress.toLowerCase()) {
+            console.log(`✅ Campaign ${i + 1} is owned by FACTORY`);
+            factoryOwnedCount++;
+          } else if (campaignOwner.toLowerCase() === wallet.address.toLowerCase()) {
+            console.log(`⚠️  Campaign ${i + 1} is owned by YOU (user)`);
+            userOwnedCount++;
+          } else {
+            console.log(`❌ Campaign ${i + 1} is owned by OTHER: ${campaignOwner}`);
+            otherOwnedCount++;
+          }
+          
+        } catch (error: any) {
+          console.log(`❌ Could not check campaign ${i + 1} ownership:`, error.message);
+        }
+      }
+      
+      console.log('\n=== OWNERSHIP SUMMARY ===');
+      console.log(`Factory-owned campaigns: ${factoryOwnedCount}`);
+      console.log(`User-owned campaigns: ${userOwnedCount}`);
+      console.log(`Other-owned campaigns: ${otherOwnedCount}`);
+      
+      if (factoryOwnedCount === campaigns.length) {
+        setStatus('✅ All campaigns are owned by factory - fee collection should work!');
+      } else if (userOwnedCount > 0) {
+        setStatus(`❌ ${userOwnedCount} campaigns are owned by you, not factory - this breaks fee collection`);
+      } else {
+        setStatus(`❌ ${otherOwnedCount} campaigns are owned by others - this breaks fee collection`);
+      }
+      
+    } catch (error: any) {
+      console.error('Ownership verification failed:', error);
+      setStatus(`Ownership verification failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -414,6 +567,24 @@ export default function FeeCollectionTest() {
                     variant="outline"
                   >
                     {loading ? 'Testing...' : 'Test Simple Contract Call'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={testIndividualCampaignFees} 
+                    disabled={loading || !wallet}
+                    className="w-full"
+                    variant="destructive"
+                  >
+                    {loading ? 'Testing...' : 'Test Individual Campaign Fees'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={testCampaignOwnership} 
+                    disabled={loading || !wallet}
+                    className="w-full"
+                    variant="default"
+                  >
+                    {loading ? 'Testing...' : 'Verify Campaign Ownership'}
                   </Button>
                   
                   <Button 
