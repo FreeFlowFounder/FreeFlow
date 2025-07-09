@@ -1,6 +1,6 @@
 {
-  "buildCommand": "node build.js",
-  "outputDirectory": "dist",
+  "buildCommand": "npx vite build",
+  "outputDirectory": "dist/public",
   "installCommand": "npm install",
   "rewrites": [
     {
