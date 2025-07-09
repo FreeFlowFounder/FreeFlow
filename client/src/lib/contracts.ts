@@ -19,7 +19,7 @@ const CAMPAIGN_FACTORY_ABI = [
 const CAMPAIGN_ABI = [
   "function goal() view returns (uint256)",
   "function deadline() view returns (uint256)",
-  "function campaignOwner() view returns (address)",
+  "function owner() view returns (address)",
   "function title() view returns (string)",
   "function description() view returns (string)",
   "function imageUrl() view returns (string)",
@@ -263,7 +263,7 @@ export class CampaignContract {
 
   async getOwner(): Promise<string> {
     try {
-      return await this.contract.campaignOwner();
+      return await this.contract.owner();
     } catch (error) {
       console.error('Failed to get campaign owner:', error);
       throw new Error('Failed to get campaign owner');
@@ -550,6 +550,17 @@ export class FeeDistributorContract {
       gasLimit: 500000
     });
     return tx.hash;
+  }
+
+  async updateRecipients(
+    validator: string,
+    team: string,
+    treasury: string,
+    marketing: string,
+    rnd: string
+  ): Promise<any> {
+    const tx = await this.contract.updateRecipients(validator, team, treasury, marketing, rnd);
+    return tx;
   }
 
   async testDistribution(): Promise<{

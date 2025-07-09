@@ -113,9 +113,21 @@ export default function Admin() {
         return;
       }
       
-      // Real implementation would fetch from FeeDistributor contract
+      if (!wallet) {
+        setStatus('Please connect your wallet to load recipients');
+        return;
+      }
+      
+      setStatus('Loading recipient addresses...');
+      const feeDistributor = getFeeDistributorContract(wallet);
+      const recipients = await feeDistributor.getRecipients();
+      
+      setRecipients(recipients);
+      setStatus('Recipients loaded successfully');
+      
     } catch (error) {
       console.error('Failed to load recipients:', error);
+      setStatus('Failed to load recipients');
     }
   };
 
@@ -339,9 +351,12 @@ export default function Admin() {
       const factory = getCampaignFactoryContract(wallet);
       const { CONTRACT_ADDRESSES } = await import('@/lib/contracts');
       
+      console.log('Calling collectFeesFromAllCampaigns with FeeDistributor:', CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
+      
       // Call collectFeesFromAllCampaigns with FeeDistributor address
       const txHash = await factory.collectFeesFromAllCampaigns(CONTRACT_ADDRESSES.FEE_DISTRIBUTOR);
       
+      console.log('Transaction sent:', txHash);
       setStatus(`Fee collection successful! TX: ${txHash.slice(0, 10)}...`);
       
       // Refresh the fee balances after collection
@@ -360,6 +375,11 @@ export default function Admin() {
   };
 
   const handleUpdateRecipients = async () => {
+    if (!wallet) {
+      setStatus('Please connect your wallet');
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (DEV_MODE) {
@@ -369,7 +389,35 @@ export default function Admin() {
       }
 
       setStatus('Updating recipient addresses...');
-      // Add contract call to FeeDistributor.updateRecipients()
+      
+      const feeDistributor = getFeeDistributorContract(wallet);
+      
+      // Validate addresses
+      const addresses = [recipients.validator, recipients.team, recipients.treasury, recipients.marketing, recipients.rnd];
+      for (const address of addresses) {
+        if (!ethers.isAddress(address)) {
+          throw new Error(`Invalid address: ${address}`);
+        }
+      }
+      
+      // Update recipients on the contract
+      const tx = await feeDistributor.updateRecipients(
+        recipients.validator,
+        recipients.team,
+        recipients.treasury,
+        recipients.marketing,
+        recipients.rnd
+      );
+      
+      setStatus('Transaction sent, waiting for confirmation...');
+      const receipt = await tx.wait();
+      
+      setStatus(`Recipients updated successfully! TX: ${tx.hash.slice(0, 10)}...`);
+      
+      // Refresh recipient data
+      setTimeout(() => {
+        loadRecipients();
+      }, 1500);
       
     } catch (error) {
       console.error('Failed to update recipients:', error);
