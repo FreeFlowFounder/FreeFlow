@@ -35,6 +35,85 @@ export default function FeeCollectionTest() {
     }
   }, [wallet]);
 
+  const testOwnershipIssue = async () => {
+    if (!wallet) return;
+    
+    setLoading(true);
+    try {
+      const factoryAddress = getAddress("CampaignFactory");
+      const factory = new ethers.Contract(factoryAddress, [
+        "function owner() view returns (address)",
+        "function collectFeesFromAllCampaigns(address to) external"
+      ], wallet.provider);
+      
+      const contractOwner = await factory.owner();
+      console.log('=== OWNERSHIP DEBUG ===');
+      console.log('Contract owner:', contractOwner);
+      console.log('Your wallet:', wallet.address);
+      console.log('Are addresses equal?', contractOwner.toLowerCase() === wallet.address.toLowerCase());
+      console.log('Platform owner from ENV:', OWNER_ADDRESS);
+      
+      // Check character by character comparison
+      console.log('=== DETAILED ADDRESS COMPARISON ===');
+      console.log('Contract owner length:', contractOwner.length);
+      console.log('Your wallet length:', wallet.address.length);
+      console.log('Contract owner (lowercase):', contractOwner.toLowerCase());
+      console.log('Your wallet (lowercase):', wallet.address.toLowerCase());
+      console.log('ENV owner (lowercase):', OWNER_ADDRESS.toLowerCase());
+      
+      // Check if your wallet matches ENV owner
+      console.log('Your wallet matches ENV owner:', wallet.address.toLowerCase() === OWNER_ADDRESS.toLowerCase());
+      console.log('Contract owner matches ENV owner:', contractOwner.toLowerCase() === OWNER_ADDRESS.toLowerCase());
+      
+      // Test direct address comparison
+      if (contractOwner.toLowerCase() !== wallet.address.toLowerCase()) {
+        console.log('❌ ADDRESSES DO NOT MATCH - This is the problem!');
+        console.log('Expected (your wallet):', wallet.address.toLowerCase());
+        console.log('Actual (contract owner):', contractOwner.toLowerCase());
+        console.log('Difference found at character:');
+        for (let i = 0; i < Math.max(contractOwner.length, wallet.address.length); i++) {
+          if (contractOwner.toLowerCase()[i] !== wallet.address.toLowerCase()[i]) {
+            console.log(`Position ${i}: Expected '${wallet.address.toLowerCase()[i]}', Got '${contractOwner.toLowerCase()[i]}'`);
+            break;
+          }
+        }
+      } else {
+        console.log('✅ ADDRESSES MATCH - The problem is elsewhere');
+      }
+      
+      // Test gas estimation to see exact error
+      const factoryWithSigner = new ethers.Contract(factoryAddress, [
+        "function collectFeesFromAllCampaigns(address to) external"
+      ], wallet.signer);
+      
+      const feeDistributorAddress = getAddress("FeeDistributor");
+      
+      try {
+        const gasEstimate = await factoryWithSigner.collectFeesFromAllCampaigns.estimateGas(feeDistributorAddress);
+        console.log('✅ Gas estimation successful:', gasEstimate.toString());
+        console.log('This means the function call should work!');
+        setStatus('✅ Gas estimation successful - function should work!');
+      } catch (gasError: any) {
+        console.log('❌ Gas estimation failed:', gasError);
+        console.log('Error message:', gasError.message);
+        console.log('Error reason:', gasError.reason);
+        console.log('Error code:', gasError.code);
+        
+        if (gasError.message.includes('caller is not the owner')) {
+          setStatus(`❌ FOUND THE ISSUE: Contract thinks you're not the owner. Contract owner: ${contractOwner}, Your wallet: ${wallet.address}`);
+        } else {
+          setStatus(`❌ Different error: ${gasError.message}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Ownership test failed:', error);
+      setStatus('Ownership test failed: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadCampaigns = async () => {
     if (!wallet) return;
     
@@ -67,7 +146,7 @@ export default function FeeCollectionTest() {
             console.log(`Campaign ${address} campaignOwner() SUCCESS: ${campaignOwnerResult}`);
             owner = campaignOwnerResult;
             ownerFunction = 'campaignOwner()';
-          } catch (campaignOwnerErr) {
+          } catch (campaignOwnerErr: any) {
             console.log(`Campaign ${address} campaignOwner() FAILED:`, campaignOwnerErr.message);
           }
           
@@ -79,7 +158,7 @@ export default function FeeCollectionTest() {
               owner = ownerResult;
               ownerFunction = 'owner()';
             }
-          } catch (ownerErr) {
+          } catch (ownerErr: any) {
             console.log(`Campaign ${address} owner() FAILED:`, ownerErr.message);
           }
           
@@ -124,12 +203,63 @@ export default function FeeCollectionTest() {
       const factoryAddress = getAddress("CampaignFactory");
       const feeDistributorAddress = getAddress("FeeDistributor");
       
+      console.log('=== TESTING FEE COLLECTION ===');
+      console.log('Factory address:', factoryAddress);
+      console.log('FeeDistributor address:', feeDistributorAddress);
+      console.log('Your wallet:', wallet.address);
+      
+      // First check if there are actually fees to collect
+      console.log('Checking campaigns for collectable fees...');
+      const campaigns = await loadCampaigns();
+      
+      let totalFeesToCollect = 0;
+      let endedCampaignsWithFees = 0;
+      
+      for (const campaign of feeData) {
+        const ethFees = parseFloat(campaign.ethFees);
+        if (ethFees > 0) {
+          totalFeesToCollect += ethFees;
+          if (campaign.isEnded) {
+            endedCampaignsWithFees++;
+          }
+          console.log(`Campaign ${campaign.address}: ${ethFees} ETH fees, ended: ${campaign.isEnded}, owned by you: ${campaign.isOwnedByYou}`);
+        }
+      }
+      
+      console.log(`Total fees to collect: ${totalFeesToCollect} ETH`);
+      console.log(`Ended campaigns with fees: ${endedCampaignsWithFees}`);
+      
+      if (totalFeesToCollect === 0) {
+        setStatus('No fees to collect - all campaigns have 0 ETH fees');
+        setLoading(false);
+        return;
+      }
+      
+      if (endedCampaignsWithFees === 0) {
+        setStatus('No ended campaigns with fees - fees can only be collected after campaigns end');
+        setLoading(false);
+        return;
+      }
+      
       // Use exact same approach as original working frontend
       const factoryAbiExtended = [
+        "function owner() view returns (address)",
         "function collectFeesFromAllCampaigns(address to) external"
       ];
       
       const factory = new ethers.Contract(factoryAddress, factoryAbiExtended, wallet.signer);
+      
+      // Double check factory owner
+      const factoryOwner = await factory.owner();
+      console.log('Factory owner:', factoryOwner);
+      console.log('Your wallet:', wallet.address);
+      console.log('Factory owner matches your wallet:', factoryOwner.toLowerCase() === wallet.address.toLowerCase());
+      
+      if (factoryOwner.toLowerCase() !== wallet.address.toLowerCase()) {
+        setStatus(`❌ You are not the factory owner. Factory owner: ${factoryOwner}, Your wallet: ${wallet.address}`);
+        setLoading(false);
+        return;
+      }
       
       setStatus('Collecting all fees from campaigns...');
       
@@ -137,9 +267,17 @@ export default function FeeCollectionTest() {
         gasLimit: 3000000 // Exact same gas limit as original
       });
       
+      console.log('Transaction sent:', tx.hash);
       setStatus('Transaction sent, waiting for confirmation...');
-      await tx.wait();
-      setStatus('All campaign fees collected to FeeDistributor.');
+      
+      const receipt = await tx.wait();
+      console.log('Transaction receipt:', receipt);
+      
+      if (receipt.status === 1) {
+        setStatus('✅ All campaign fees collected to FeeDistributor successfully!');
+      } else {
+        setStatus('❌ Transaction failed - status 0');
+      }
       
       // Refresh data after collection
       setTimeout(() => {
@@ -149,6 +287,7 @@ export default function FeeCollectionTest() {
     } catch (error: any) {
       console.error('Fee collection failed:', error);
       
+      // More detailed error analysis
       let errorMessage = 'Unknown error';
       if (error.reason) {
         errorMessage = error.reason;
@@ -158,7 +297,14 @@ export default function FeeCollectionTest() {
         errorMessage = error.message;
       }
       
-      setStatus(`Fee collection failed: ${errorMessage}`);
+      // Check if it's the specific "Not owner" error
+      if (error.message && error.message.includes('Not owner')) {
+        setStatus('❌ Fee collection failed: Contract says you are not the owner');
+      } else if (error.message && error.message.includes('execution reverted')) {
+        setStatus('❌ Fee collection failed: Transaction reverted (likely no fees to collect or access control issue)');
+      } else {
+        setStatus(`Fee collection failed: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -205,6 +351,15 @@ export default function FeeCollectionTest() {
                   <CardDescription>Fee collection operations</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Button 
+                    onClick={testOwnershipIssue} 
+                    disabled={loading || !wallet}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    {loading ? 'Testing...' : 'Test Ownership Issue'}
+                  </Button>
+                  
                   <Button 
                     onClick={loadCampaigns} 
                     disabled={loading || !wallet}
