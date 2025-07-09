@@ -146,6 +146,7 @@ export function ImageUploader({ onImageUpload, currentImage, onRemoveImage }: Im
         id="image-upload"
         name="image-upload"
         disabled={isUploading}
+        aria-label="Upload campaign image"
       />
       
       <div className="space-y-2">

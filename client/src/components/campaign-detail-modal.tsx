@@ -445,14 +445,17 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
                 
                 {/* Amount Input */}
                 <div className="mb-4">
-                  <Label className="text-sm font-medium text-gray-700 mb-2">Amount</Label>
+                  <Label htmlFor="donation-amount" className="text-sm font-medium text-gray-700 mb-2">Amount</Label>
                   <Input
+                    id="donation-amount"
+                    name="donation-amount"
                     type="number"
                     step="0.01"
                     placeholder="0.1"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className="focus:ring-freeflow-500 focus:border-freeflow-500"
+                    aria-label={`Donation amount in ${selectedToken}`}
                   />
                 </div>
                 
