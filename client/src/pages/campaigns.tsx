@@ -88,14 +88,17 @@ export default function Campaigns() {
       setError(null);
       
       console.log('Starting to fetch campaigns...');
+      console.log('Current network from ENV:', import.meta.env.VITE_NETWORK);
       
       const provider = new ethers.BrowserProvider(window.ethereum);
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
+      console.log('Factory address:', factoryAddress);
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
       const campaignAddresses = await factory.getAllCampaigns();
       console.log('Campaign addresses returned:', campaignAddresses.length);
+      console.log('Campaign addresses:', campaignAddresses);
       
       setAllCampaignAddresses(campaignAddresses);
       
@@ -123,7 +126,7 @@ export default function Campaigns() {
       "function title() view returns (string)",
       "function imageUrl() view returns (string)",
       "function deadline() view returns (uint256)",
-      "function campaignOwner() view returns (address)",
+      "function owner() view returns (address)",
       "function goal() view returns (uint256)",
       "function getWithdrawableAmount() view returns (uint256,uint256)",
       "function getFeeBalances() view returns (uint256,uint256)"
@@ -143,7 +146,7 @@ export default function Campaigns() {
           campaignContract.title(),
           campaignContract.imageUrl().catch(() => ''),
           campaignContract.deadline(), 
-          campaignContract.campaignOwner(),
+          campaignContract.owner(),
           campaignContract.goal()
         ]);
         
@@ -233,7 +236,6 @@ export default function Campaigns() {
     }
     
     console.log(`Loaded ${newCampaigns.length} campaigns (batch ${startIndex}-${endIndex})`);
-    console.log('Campaign creation order:', newCampaigns.map(c => `${c.title}: ${c.createdAt}`));
   };
 
   const loadMoreCampaigns = async () => {

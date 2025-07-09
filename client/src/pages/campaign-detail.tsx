@@ -48,7 +48,7 @@ export default function CampaignDetail() {
           "function title() view returns (string)",
           "function imageUrl() view returns (string)",
           "function deadline() view returns (uint256)",
-          "function campaignOwner() view returns (address)",
+          "function owner() view returns (address)",
           "function goal() view returns (uint256)",
           "function getWithdrawableAmount() view returns (uint256,uint256)",
           "function getUpdateCount() view returns (uint256)",
@@ -62,7 +62,7 @@ export default function CampaignDetail() {
         const title = await campaignContract.title();
         const imageUrl = await campaignContract.imageUrl();
         const deadline = await campaignContract.deadline();
-        const owner = await campaignContract.campaignOwner();
+        const owner = await campaignContract.owner();
         const goal = await campaignContract.goal();
         const [ethAvailable] = await campaignContract.getWithdrawableAmount();
         

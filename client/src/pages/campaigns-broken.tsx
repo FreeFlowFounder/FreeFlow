@@ -101,7 +101,7 @@ export default function Campaigns() {
         "function title() view returns (string)",
         "function imageUrl() view returns (string)",
         "function deadline() view returns (uint256)",
-        "function campaignOwner() view returns (address)",
+        "function owner() view returns (address)",
         "function goal() view returns (uint256)",
         "function getWithdrawableAmount() view returns (uint256,uint256)"
       ];
@@ -123,7 +123,7 @@ export default function Campaigns() {
             campaignContract.title(),
             campaignContract.imageUrl().catch(() => ''),
             campaignContract.deadline(),
-            campaignContract.campaignOwner(),
+            campaignContract.owner(),
             campaignContract.goal(),
             campaignContract.getWithdrawableAmount()
           ]);

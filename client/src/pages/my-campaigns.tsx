@@ -63,7 +63,7 @@ export default function MyCampaigns() {
         "function title() view returns (string)",
         "function imageUrl() view returns (string)",
         "function deadline() view returns (uint256)",
-        "function campaignOwner() view returns (address)",
+        "function owner() view returns (address)",
         "function goal() view returns (uint256)",
         "function getWithdrawableAmount() view returns (uint256,uint256)",
         "function getFeeBalances() view returns (uint256,uint256)"
@@ -76,7 +76,7 @@ export default function MyCampaigns() {
         try {
           const campaignContract = new ethers.Contract(address, campaignAbi, provider);
           
-          const owner = await campaignContract.campaignOwner();
+          const owner = await campaignContract.owner();
           
           // Only include campaigns owned by the current wallet (like old frontend)
           if (owner.toLowerCase() !== currentUser.toLowerCase()) {
@@ -170,7 +170,6 @@ export default function MyCampaigns() {
       });
       
       setCampaigns(sortedCampaigns);
-      console.log('My Campaigns loaded by newest first:', sortedCampaigns.map(c => `${c.title}: ${c.createdAt}`));
       
     } catch (err) {
       console.error('Failed to fetch my campaigns:', err);
