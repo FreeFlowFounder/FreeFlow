@@ -7,7 +7,7 @@ module.exports = {
     base: {
       url: "https://mainnet.base.org",
       chainId: 8453,
-      accounts: [process.env.PRIVATE_KEY], // or use injected wallet
+      //accounts: [process.env.PRIVATE_KEY], // or use injected wallet
     },
   },
 };
