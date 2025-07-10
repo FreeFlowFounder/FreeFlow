@@ -89,13 +89,70 @@ export default function Campaigns() {
       
       console.log('Starting to fetch campaigns...');
       console.log('Current network from ENV:', import.meta.env.VITE_NETWORK);
+      console.log('All env vars:', {
+        VITE_NETWORK: import.meta.env.VITE_NETWORK,
+        VITE_ALLOW_FLW: import.meta.env.VITE_ALLOW_FLW,
+        VITE_OWNER_ADDRESS: import.meta.env.VITE_OWNER_ADDRESS
+      });
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      // Create provider that works without wallet connection
+      let provider;
+      if (window.ethereum) {
+        console.log('Using wallet provider');
+        provider = new ethers.BrowserProvider(window.ethereum);
+      } else {
+        // Multiple RPC endpoints for better reliability
+        const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
+          ? [
+              'https://mainnet.base.org',
+              'https://base-mainnet.g.alchemy.com/v2/demo',
+              'https://base.publicnode.com'
+            ]
+          : [
+              'https://sepolia.base.org',
+              'https://base-sepolia.g.alchemy.com/v2/demo'
+            ];
+        
+        console.log('Trying RPC providers:', rpcUrls);
+        
+        // Try each RPC endpoint until one works
+        let workingProvider = null;
+        for (const rpcUrl of rpcUrls) {
+          try {
+            console.log('Trying RPC:', rpcUrl);
+            const testProvider = new ethers.JsonRpcProvider(rpcUrl);
+            // Test the connection
+            await testProvider.getNetwork();
+            workingProvider = testProvider;
+            console.log('Successfully connected to:', rpcUrl);
+            break;
+          } catch (e) {
+            console.log('RPC failed:', rpcUrl, e instanceof Error ? e.message : 'Unknown error');
+          }
+        }
+        
+        if (!workingProvider) {
+          throw new Error('All RPC endpoints failed. Please check your internet connection.');
+        }
+        
+        provider = workingProvider;
+      }
+      
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
       console.log('Factory address:', factoryAddress);
+      
+      // Check network
+      try {
+        const network = await provider.getNetwork();
+        console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
+      } catch (e) {
+        console.error('Could not get network info:', e);
+      }
+      
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
+      console.log('Calling getAllCampaigns...');
       const campaignAddresses = await factory.getAllCampaigns();
       console.log('Campaign addresses returned:', campaignAddresses.length);
       console.log('Campaign addresses:', campaignAddresses);
@@ -114,14 +171,26 @@ export default function Campaigns() {
       
     } catch (err) {
       console.error('Failed to fetch campaigns:', err);
-      setError('Failed to load campaigns. Please check your wallet connection.');
+      console.error('Error details:', err);
+      setError(`Failed to load campaigns: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
   const loadCampaignBatch = async (addresses: string[], startIndex: number, count: number) => {
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    // Use same provider logic as fetchCampaigns
+    let provider;
+    if (window.ethereum) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+    } else {
+      // Fallback to public RPC for Base mainnet
+      const rpcUrl = import.meta.env.VITE_NETWORK === 'mainnet' 
+        ? 'https://mainnet.base.org'
+        : 'https://sepolia.base.org';
+      provider = new ethers.JsonRpcProvider(rpcUrl);
+    }
+    
     const campaignAbi = [
       "function title() view returns (string)",
       "function imageUrl() view returns (string)",
@@ -336,8 +405,6 @@ export default function Campaigns() {
       }
     });
 
-
-
   return (
     <PageContainer>
       <div className="space-y-8">
@@ -355,7 +422,6 @@ export default function Campaigns() {
               size="sm"
               onClick={fetchCampaigns}
               disabled={loading}
-              className="flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
