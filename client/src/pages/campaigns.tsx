@@ -147,7 +147,7 @@ export default function Campaigns() {
         try {
           owner = await campaignContract.owner();
         } catch (error) {
-          console.log(`Skipping invalid campaign contract at ${address}:`, error.message);
+          console.log(`Skipping invalid campaign contract at ${address}:`, error instanceof Error ? error.message : 'Unknown error');
           continue;
         }
         
@@ -161,7 +161,7 @@ export default function Campaigns() {
             continue;
           }
         } catch (error) {
-          console.log(`Failed to get title for campaign ${address}:`, error.message);
+          console.log(`Failed to get title for campaign ${address}:`, error instanceof Error ? error.message : 'Unknown error');
           continue;
         }
         
@@ -172,7 +172,7 @@ export default function Campaigns() {
             campaignContract.goal()
           ]);
         } catch (error) {
-          console.log(`Failed to get basic campaign data for ${address}:`, error.message);
+          console.log(`Failed to get basic campaign data for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
           continue;
         }
         
@@ -325,18 +325,11 @@ export default function Campaigns() {
           if (!aIsActive && bIsActive) return 1;
           
           // Among active campaigns, sort by deadline (soonest first)
-          if (aIsActive && bIsActive) {
-            return aDeadline - bDeadline;
-          }
-          
-          // Among ended campaigns, sort by most recently ended
-          return bDeadline - aDeadline;
+          // Among ended campaigns, sort by deadline (most recent first)
+          return aIsActive ? aDeadline - bDeadline : bDeadline - aDeadline;
         
         case 'closest_to_goal':
-          // Sort by progress percentage (closest to 100% first)
-          const aProgress = parseFloat(a.raised) > 0 ? (parseFloat(a.raised) / parseFloat(a.goal)) * 100 : 0;
-          const bProgress = parseFloat(b.raised) > 0 ? (parseFloat(b.raised) / parseFloat(b.goal)) * 100 : 0;
-          return bProgress - aProgress;
+          return b.progress - a.progress;
         
         default:
           return 0;
@@ -346,51 +339,17 @@ export default function Campaigns() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageContainer className="py-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Browse Campaigns</h1>
-          
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-              <Button
-                variant={filter === 'active' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('active')}
-                className={filter === 'active' ? 'bg-white text-freeflow-900 shadow-sm' : ''}
-              >
-                Active
-              </Button>
-              <Button
-                variant={filter === 'ended' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('ended')}
-                className={filter === 'ended' ? 'bg-white text-freeflow-900 shadow-sm' : ''}
-              >
-                Ended
-              </Button>
-              <Button
-                variant={filter === 'all' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter('all')}
-                className={filter === 'all' ? 'bg-white text-freeflow-900 shadow-sm' : ''}
-              >
-                All
-              </Button>
-            </div>
-            
-            <Select value={sortBy} onValueChange={(value: 'newest' | 'ending_soon' | 'closest_to_goal') => setSortBy(value)}>
-              <SelectTrigger className="w-full sm:w-48">
-                <ArrowUpDown className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest Created</SelectItem>
-                <SelectItem value="ending_soon">Ending Soon</SelectItem>
-                <SelectItem value="closest_to_goal">Closest to Goal</SelectItem>
-              </SelectContent>
-            </Select>
-            
+    <PageContainer>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Browse Campaigns</h1>
+            <p className="text-muted-foreground mt-1">
+              Discover and support meaningful causes
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -398,123 +357,124 @@ export default function Campaigns() {
               disabled={loading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                id="campaign-search"
-                name="campaign-search"
-                type="text"
-                placeholder="Search by title or creator"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 w-full sm:w-64 focus:ring-freeflow-500 focus:border-freeflow-500"
-              />
-            </div>
+            <Link href="/create-campaign">
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Campaign
+              </Button>
+            </Link>
           </div>
         </div>
-        
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-freeflow-600 mx-auto mb-4"></div>
-            <p className="text-gray-500 text-lg">Loading campaigns from blockchain...</p>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search campaigns or creators..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        )}
-        
-        {/* Error State */}
-        {error && (
-          <div className="text-center py-12">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-              <p className="text-red-700 font-medium mb-2">Error Loading Campaigns</p>
-              <p className="text-red-600 text-sm">{error}</p>
-              <Button 
+          <div className="flex gap-2">
+            <Select value={filter} onValueChange={(value: 'all' | 'active' | 'ended') => setFilter(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="ended">Ended</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(value: 'newest' | 'ending_soon' | 'closest_to_goal') => setSortBy(value)}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="ending_soon">Ending Soon</SelectItem>
+                <SelectItem value="closest_to_goal">Closest to Goal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="space-y-4">
+          {loading && campaigns.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-muted-foreground mt-4">Loading campaigns...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-destructive">{error}</p>
+              <Button
+                variant="outline"
                 onClick={fetchCampaigns}
-                className="mt-4 bg-red-600 hover:bg-red-700"
+                className="mt-4"
               >
                 Try Again
               </Button>
             </div>
-          </div>
-        )}
-        
-        {/* Empty State */}
-        {!loading && !error && filteredCampaigns.length === 0 && (
-          <div className="text-center py-12">
-            <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <Search className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No matching campaigns' : 'No campaigns found'}
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search or filter criteria' 
-                  : 'Be the first to create a campaign!'
-                }
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No campaigns found matching your criteria.</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Try adjusting your search or filter options.
               </p>
-              <Link href="/create">
-                <span className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-freeflow-600 hover:bg-freeflow-700 rounded-md transition-colors cursor-pointer">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Campaign
-                </span>
-              </Link>
             </div>
-          </div>
-        )}
-        
-        {/* Campaigns Grid */}
-        {!loading && !error && filteredCampaigns.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCampaigns.map((campaign) => (
-                <CampaignCard
-                  key={campaign.id}
-                  campaign={campaign}
-                  onClick={() => handleCampaignClick(campaign)}
-                />
-              ))}
-            </div>
-            
-            {/* Load More Button */}
-            {campaigns.length < allCampaignAddresses.length && (
-              <div className="text-center mt-8">
-                <Button
-                  onClick={loadMoreCampaigns}
-                  disabled={loadingMore}
-                  variant="outline"
-                  size="lg"
-                  className="flex items-center gap-2"
-                >
-                  {loadingMore ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Loading more...
-                    </>
-                  ) : (
-                    <>
-                      Load More Campaigns
-                      <span className="text-sm text-gray-500">
-                        ({campaigns.length} of {allCampaignAddresses.length})
-                      </span>
-                    </>
-                  )}
-                </Button>
+          ) : (
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredCampaigns.map((campaign) => (
+                  <CampaignCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    onClick={() => handleCampaignClick(campaign)}
+                  />
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </PageContainer>
-      
+              
+              {/* Load More Button */}
+              {campaigns.length < allCampaignAddresses.length && (
+                <div className="text-center py-8">
+                  <Button
+                    variant="outline"
+                    onClick={loadMoreCampaigns}
+                    disabled={loadingMore}
+                    className="min-w-32"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More'
+                    )}
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Showing {campaigns.length} of {allCampaignAddresses.length} campaigns
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Campaign Detail Modal */}
       <CampaignDetailModal
         campaign={selectedCampaign}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
-    </div>
+    </PageContainer>
   );
 }

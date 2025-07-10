@@ -5,7 +5,7 @@ export interface Campaign {
   goal: string;
   raised: string;
   creator: string;
-  contractAddress?: string;
+  contractAddress: string;
   imageUrl?: string;
   duration: number;
   endDate: string;

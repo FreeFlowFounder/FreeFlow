@@ -81,7 +81,7 @@ export default function MyCampaigns() {
           try {
             owner = await campaignContract.owner();
           } catch (error) {
-            console.log(`Skipping invalid campaign contract at ${address}:`, error.message);
+            console.log(`Skipping invalid campaign contract at ${address}:`, error instanceof Error ? error.message : 'Unknown error');
             continue;
           }
           
@@ -100,7 +100,7 @@ export default function MyCampaigns() {
               continue;
             }
           } catch (error) {
-            console.log(`Failed to get title for campaign ${address}:`, error.message);
+            console.log(`Failed to get title for campaign ${address}:`, error instanceof Error ? error.message : 'Unknown error');
             continue;
           }
           
@@ -116,7 +116,7 @@ export default function MyCampaigns() {
             goal = await campaignContract.goal();
             [ethAvailable] = await campaignContract.getWithdrawableAmount();
           } catch (error) {
-            console.log(`Failed to get basic campaign data for ${address}:`, error.message);
+            console.log(`Failed to get basic campaign data for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
             continue;
           }
 
@@ -321,15 +321,15 @@ export default function MyCampaigns() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Goal Achievement</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Average Progress</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {campaigns.length > 0 ? Math.round(campaigns.reduce((total, campaign) => total + campaign.progress, 0) / campaigns.length) : 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Average progress
+                  Overall completion rate
                 </p>
               </CardContent>
             </Card>
@@ -337,60 +337,86 @@ export default function MyCampaigns() {
         )}
 
         {/* Campaigns List */}
-        <div className="space-y-6">
-          {campaigns.map((campaign) => (
-            <Card key={campaign.id}>
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex-1 space-y-4">
+        {!loading && !error && campaigns.length === 0 && (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-lg border border-gray-200 p-8 max-w-md mx-auto">
+              <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns yet</h3>
+              <p className="text-gray-600 mb-6">
+                Create your first campaign to start raising funds for your cause
+              </p>
+              <Link href="/create">
+                <Button className="bg-freeflow-900 hover:bg-freeflow-800 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Campaign
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && campaigns.length > 0 && (
+          <div className="grid gap-6">
+            {campaigns.map((campaign) => (
+              <Card key={campaign.id} className="overflow-hidden">
+                <div className="flex">
+                  {campaign.imageUrl && (
+                    <div className="w-48 h-32 flex-shrink-0">
+                      <img 
+                        src={campaign.imageUrl} 
+                        alt={campaign.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 p-6">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                          {campaign.title}
-                        </h3>
-                        <p className="text-gray-600 line-clamp-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                            {campaign.title}
+                          </h3>
+                          <Badge variant={campaign.status === 'active' ? 'default' : campaign.status === 'ended' ? 'secondary' : 'outline'}>
+                            {campaign.status === 'active' ? 'Active' : campaign.status === 'ended' ? 'Ended' : 'Goal Met'}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                           {campaign.description}
                         </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge 
-                          className={campaign.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-                        >
-                          {campaign.isActive ? 'Active' : 'Ended'}
-                        </Badge>
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Raised</p>
-                          <p className="font-semibold">{campaign.raised} ETH</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Goal</p>
-                          <p className="font-semibold">{campaign.goal} ETH</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Progress</p>
-                          <p className="font-semibold">{campaign.progress}%</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Time Left</p>
-                          <p className="font-semibold">{campaign.timeLeft}</p>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Progress</span>
+                            <span className="font-medium">{campaign.progress}%</span>
+                          </div>
+                          <Progress value={campaign.progress} className="h-2" />
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">
+                              {campaign.raised} ETH raised of {campaign.goal} ETH
+                            </span>
+                            <span className="text-gray-500">{campaign.timeLeft}</span>
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Progress</span>
-                          <span className="text-gray-900 font-medium">{campaign.progress}%</span>
-                        </div>
-                        <Progress value={campaign.progress} className="h-2" />
+                      <div className="flex flex-col gap-2 ml-4">
+                        <Link href={`/campaign/${campaign.contractAddress}`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="w-4 h-4 mr-2" />
+                            View Details
+                          </Button>
+                        </Link>
+                        {campaign.status === 'ended' && parseFloat(campaign.raised) > 0 && (
+                          <Button 
+                            onClick={() => handleWithdraw(campaign.contractAddress)}
+                            disabled={loading}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            Withdraw
+                          </Button>
+                        )}
                       </div>
                     </div>
 
@@ -416,24 +442,8 @@ export default function MyCampaigns() {
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {!loading && !error && campaigns.length === 0 && (
-          <div className="text-center py-12">
-            <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns yet</h3>
-            <p className="text-gray-500 mb-6">
-              Create your first campaign to start raising funds for your cause
-            </p>
-            <Link href="/create">
-              <Button className="bg-freeflow-900 hover:bg-freeflow-800 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Campaign
-              </Button>
-            </Link>
+              </Card>
+            ))}
           </div>
         )}
       </PageContainer>
