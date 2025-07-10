@@ -129,7 +129,10 @@ export default function Campaigns() {
         for (const rpcUrl of rpcUrls) {
           try {
             console.log('Trying RPC:', rpcUrl);
-            const testProvider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+            const testProvider = new ethers.JsonRpcProvider(rpcUrl, {
+              chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+              name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+            }, {
               staticNetwork: true,
               batchMaxCount: 1,
               batchMaxSize: 1024,
@@ -249,7 +252,10 @@ export default function Campaigns() {
       const rpcUrl = import.meta.env.VITE_NETWORK === 'mainnet' 
         ? 'https://base.publicnode.com'
         : 'https://sepolia.base.org';
-      provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      provider = new ethers.JsonRpcProvider(rpcUrl, {
+        chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+        name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+      }, {
         staticNetwork: true,
         batchMaxCount: 1,
         batchMaxSize: 1024,
