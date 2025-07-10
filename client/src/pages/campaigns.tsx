@@ -165,23 +165,52 @@ export default function Campaigns() {
       console.log('User agent:', navigator.userAgent);
       console.log('Is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
       
-      // Check network
+      // Check network - this is critical for mobile debugging
       try {
         const network = await provider.getNetwork();
         console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
+        
+        // Base mainnet should be chainId 8453
+        if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
+          console.error('NETWORK MISMATCH: Expected Base mainnet (8453), got:', network.chainId);
+          throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
+        }
       } catch (e) {
         console.error('Could not get network info:', e);
+        throw e;
       }
       
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
       // Check if the contract exists at this address
       console.log('Checking contract code at factory address...');
-      const factoryCode = await provider.getCode(factoryAddress);
-      console.log('Factory contract code length:', factoryCode.length);
-      
-      if (factoryCode === '0x') {
-        throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
+      try {
+        const factoryCode = await provider.getCode(factoryAddress);
+        console.log('Factory contract code length:', factoryCode.length);
+        console.log('Factory contract code preview:', factoryCode.substring(0, 100) + '...');
+        
+        if (factoryCode === '0x') {
+          // Try alternative RPC for mobile if main one fails
+          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile) {
+            console.log('Mobile browser: trying alternative RPC for contract verification...');
+            const altProvider = new ethers.JsonRpcProvider('https://base-mainnet.g.alchemy.com/v2/demo');
+            const altFactoryCode = await altProvider.getCode(factoryAddress);
+            console.log('Alternative RPC contract code length:', altFactoryCode.length);
+            
+            if (altFactoryCode !== '0x') {
+              console.log('Contract found on alternative RPC, switching provider...');
+              provider = altProvider;
+            } else {
+              throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
+            }
+          } else {
+            throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
+          }
+        }
+      } catch (e) {
+        console.error('Error checking contract code:', e);
+        throw e;
       }
       
       console.log('Calling getAllCampaigns...');
