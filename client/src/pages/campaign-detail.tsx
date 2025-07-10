@@ -30,6 +30,7 @@ export default function CampaignDetail() {
   const [updates, setUpdates] = useState<Array<{ message: string; timestamp: number }>>([]);
   const [newUpdate, setNewUpdate] = useState('');
   const [isPostingUpdate, setIsPostingUpdate] = useState(false);
+  const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
 
   useEffect(() => {
     const fetchCampaignData = async () => {
@@ -348,6 +349,58 @@ export default function CampaignDetail() {
     });
   };
 
+  const refreshUpdates = async () => {
+    if (!params?.id) return;
+    
+    setIsRefreshingUpdates(true);
+    try {
+      console.log('🔄 Manually refreshing updates for:', params.id);
+      
+      const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+      const updateContract = new ethers.Contract(
+        params.id,
+        [
+          "function getUpdateCount() view returns (uint256)",
+          "function getUpdate(uint256) view returns (string, uint256)"
+        ],
+        provider
+      );
+      
+      const updateCount = await updateContract.getUpdateCount();
+      console.log('🔄 Manual refresh - Update count:', Number(updateCount));
+      
+      const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
+      
+      for (let i = 0; i < Number(updateCount); i++) {
+        try {
+          const [message, timestamp] = await updateContract.getUpdate(i);
+          campaignUpdates.push({ message, timestamp: Number(timestamp) });
+          console.log(`🔄 Manual refresh - Update ${i}: "${message.slice(0, 50)}..."`);
+        } catch (updateErr) {
+          console.log(`🔄 Manual refresh failed for update ${i}:`, updateErr);
+        }
+      }
+      
+      campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
+      setUpdates(campaignUpdates);
+      
+      toast({
+        title: 'Updates Refreshed',
+        description: `Found ${campaignUpdates.length} updates`,
+      });
+      
+    } catch (error) {
+      console.error('🔄 Manual refresh failed:', error);
+      toast({
+        title: 'Refresh Failed',
+        description: 'Could not refresh updates',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshingUpdates(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -465,10 +518,25 @@ export default function CampaignDetail() {
             {/* Campaign Updates */}
             <Card>
               <CardHeader>
-                <CardTitle>Campaign Updates</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Campaign Updates</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshUpdates}
+                    disabled={isRefreshingUpdates}
+                  >
+                    {isRefreshingUpdates ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {/* Debug info */}
+                  <div className="text-xs text-gray-400 border-b pb-2">
+                    Debug: {updates.length} updates found | Campaign: {campaign?.contractAddress || 'unknown'}
+                  </div>
+                  
                   {updates.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">No updates yet.</p>
                   ) : (
