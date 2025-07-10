@@ -176,7 +176,31 @@ export default function Campaigns() {
         // Base mainnet should be chainId 8453
         if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
           console.error('NETWORK MISMATCH: Expected Base mainnet (8453), got:', network.chainId);
-          throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
+          
+          // For mobile browsers, force reconnection to Base network
+          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile) {
+            console.log('Mobile browser detected, forcing Base network connection...');
+            const baseProvider = new ethers.JsonRpcProvider('https://base.publicnode.com', {
+              chainId: 8453,
+              name: 'base'
+            }, {
+              staticNetwork: true
+            });
+            
+            // Test the forced Base connection
+            const baseNetwork = await baseProvider.getNetwork();
+            console.log('Forced Base network:', baseNetwork.name, 'Chain ID:', baseNetwork.chainId);
+            
+            if (baseNetwork.chainId === BigInt(8453)) {
+              console.log('Successfully forced Base network connection');
+              provider = baseProvider;
+            } else {
+              throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
+            }
+          } else {
+            throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
+          }
         }
       } catch (e) {
         console.error('Could not get network info:', e);
