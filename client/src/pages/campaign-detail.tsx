@@ -50,11 +50,11 @@ export default function CampaignDetail() {
           "function deadline() view returns (uint256)",
           "function owner() view returns (address)",
           "function goal() view returns (uint256)",
-          "function getWithdrawableAmount() view returns (uint256,uint256)",
-          "function getFeeBalances() view returns (uint256,uint256)",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
-          "function postUpdate(string memory newUpdate)"
+          "function postUpdate(string memory newUpdate)",
+          "function hasEnded() view returns (bool)",
+          "function donateETH() payable"
         ];
         
         const campaignContract = new ethers.Contract(contractAddress, campaignAbi, provider);
@@ -64,7 +64,7 @@ export default function CampaignDetail() {
         
         try {
           owner = await campaignContract.owner();
-        } catch (error) {
+        } catch (error: any) {
           throw new Error(`Invalid campaign contract: ${error.message}`);
         }
         
@@ -73,7 +73,7 @@ export default function CampaignDetail() {
           if (!title || title.trim() === '') {
             throw new Error('Campaign has no title');
           }
-        } catch (error) {
+        } catch (error: any) {
           throw new Error(`Failed to get campaign title: ${error.message}`);
         }
         
@@ -83,56 +83,27 @@ export default function CampaignDetail() {
             campaignContract.deadline(),
             campaignContract.goal()
           ]);
-        } catch (error) {
+        } catch (error: any) {
           throw new Error(`Failed to get basic campaign data: ${error.message}`);
         }
         
-        // Try multiple approaches to get campaign balance
-        ethAvailable = BigInt(0);
-        
-        // Method 1: Try getWithdrawableAmount() function
+        // Use direct contract balance for now (simpler approach)
         try {
-          const result = await campaignContract.getWithdrawableAmount();
-          ethAvailable = result[0]; // First element should be ETH amount
-          console.log('✅ getWithdrawableAmount() succeeded:', ethers.formatEther(ethAvailable));
-        } catch (error) {
-          console.log('❌ getWithdrawableAmount() failed:', error.message);
-          
-          // Method 2: Try direct contract balance
-          try {
-            const balance = await provider.getBalance(contractAddress);
-            ethAvailable = balance;
-            console.log('✅ Using direct contract balance:', ethers.formatEther(balance));
-          } catch (balanceError) {
-            console.log('❌ Direct balance check failed:', balanceError.message);
-            
-            // Method 3: Set to zero and continue
-            ethAvailable = BigInt(0);
-            console.log('⚠️ Using zero balance fallback');
-          }
+          const balance = await provider.getBalance(contractAddress);
+          ethAvailable = balance;
+          console.log('Contract balance:', ethers.formatEther(balance));
+        } catch (balanceError: any) {
+          console.log('Balance check failed:', balanceError.message);
+          ethAvailable = BigInt(0);
         }
         
         const goalInEth = ethers.formatEther(goal);
         const deadlineNum = Number(deadline);
         const isActive = deadlineNum * 1000 > Date.now();
         
-        // Get blockchain data for sync
-        let blockchainRaised = '0';
-        if (isActive) {
-          blockchainRaised = ethers.formatEther(ethAvailable);
-        } else {
-          // Campaign has ended - capture the final state including fees
-          try {
-            const feeResult = await campaignContract.getFeeBalances();
-            const currentFees = feeResult[0]; // ETH fees
-            const totalDonationsReceived = ethAvailable + currentFees;
-            blockchainRaised = ethers.formatEther(totalDonationsReceived);
-            console.log('✅ Including fees in ended campaign calculation');
-          } catch (error) {
-            console.log('❌ Could not get fees for ended campaign, using withdrawable amount only');
-            blockchainRaised = ethers.formatEther(ethAvailable);
-          }
-        }
+        // Use direct balance for now (simplest approach)
+        const blockchainRaised = ethers.formatEther(ethAvailable);
+        console.log('Using direct balance for campaign:', blockchainRaised);
         
         // Sync with progress tracker
         await ProgressTracker.syncWithBlockchain(contractAddress, goalInEth, blockchainRaised, isActive);
@@ -174,14 +145,28 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates
+        // Fetch campaign updates (simplified approach matching working modal)
         try {
-          const updateCount = await campaignContract.getUpdateCount();
-          const campaignUpdates = [];
+          console.log('Fetching updates for campaign:', contractAddress);
+          
+          // Create a contract instance specifically for updates
+          const updateContract = new ethers.Contract(
+            contractAddress,
+            [
+              "function getUpdateCount() view returns (uint256)",
+              "function getUpdate(uint256) view returns (string, uint256)"
+            ],
+            provider
+          );
+          
+          const updateCount = await updateContract.getUpdateCount();
+          console.log('Update count:', Number(updateCount));
+          
+          const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
           
           for (let i = 0; i < Number(updateCount); i++) {
             try {
-              const [message, timestamp] = await campaignContract.getUpdate(i);
+              const [message, timestamp] = await updateContract.getUpdate(i);
               campaignUpdates.push({ message, timestamp: Number(timestamp) });
             } catch (updateErr) {
               console.log(`Failed to fetch update ${i}:`, updateErr);
@@ -191,9 +176,12 @@ export default function CampaignDetail() {
           // Sort updates by timestamp (newest first)
           campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
           setUpdates(campaignUpdates);
+          
+          console.log(`Successfully loaded ${campaignUpdates.length} updates`);
+          
         } catch (updateErr) {
-          console.log('Failed to fetch updates:', updateErr);
-          setUpdates([]); // Set empty array if no updates or error
+          console.log('Failed to fetch campaign updates:', updateErr);
+          setUpdates([]); // Set empty array on any error
         }
       } catch (err) {
         console.error('Failed to fetch campaign data:', err);
