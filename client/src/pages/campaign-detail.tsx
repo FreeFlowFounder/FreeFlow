@@ -49,6 +49,7 @@ export default function CampaignDetail() {
           "function imageUrl() view returns (string)",
           "function deadline() view returns (uint256)",
           "function owner() view returns (address)",
+          "function campaignOwner() view returns (address)",
           "function goal() view returns (uint256)",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
@@ -63,7 +64,13 @@ export default function CampaignDetail() {
         let title, imageUrl, deadline, owner, goal, ethAvailable;
         
         try {
-          owner = await campaignContract.owner();
+          // Try owner() first (v4 contracts), then campaignOwner() (older contracts)
+          try {
+            owner = await campaignContract.owner();
+          } catch (ownerError) {
+            console.log('owner() failed, trying campaignOwner()');
+            owner = await campaignContract.campaignOwner();
+          }
         } catch (error: any) {
           throw new Error(`Invalid campaign contract: ${error.message}`);
         }
@@ -147,7 +154,9 @@ export default function CampaignDetail() {
 
         // Fetch campaign updates (simplified approach matching working modal)
         try {
-          console.log('Fetching updates for campaign:', contractAddress);
+          console.log('🔍 Fetching updates for campaign:', contractAddress);
+          console.log('🔍 Campaign title:', title);
+          console.log('🔍 Campaign owner:', owner);
           
           // Create a contract instance specifically for updates
           const updateContract = new ethers.Contract(
@@ -160,7 +169,7 @@ export default function CampaignDetail() {
           );
           
           const updateCount = await updateContract.getUpdateCount();
-          console.log('Update count:', Number(updateCount));
+          console.log('✅ Update count:', Number(updateCount));
           
           const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
           
@@ -168,8 +177,9 @@ export default function CampaignDetail() {
             try {
               const [message, timestamp] = await updateContract.getUpdate(i);
               campaignUpdates.push({ message, timestamp: Number(timestamp) });
+              console.log(`✅ Loaded update ${i}: "${message.slice(0, 50)}..."`);
             } catch (updateErr) {
-              console.log(`Failed to fetch update ${i}:`, updateErr);
+              console.log(`❌ Failed to fetch update ${i}:`, updateErr);
             }
           }
           
@@ -177,10 +187,10 @@ export default function CampaignDetail() {
           campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
           setUpdates(campaignUpdates);
           
-          console.log(`Successfully loaded ${campaignUpdates.length} updates`);
+          console.log(`🎉 Successfully loaded ${campaignUpdates.length} updates for campaign detail page`);
           
         } catch (updateErr) {
-          console.log('Failed to fetch campaign updates:', updateErr);
+          console.log('❌ Failed to fetch campaign updates:', updateErr);
           setUpdates([]); // Set empty array on any error
         }
       } catch (err) {
