@@ -102,12 +102,21 @@ export default function Campaigns() {
         provider = new ethers.BrowserProvider(window.ethereum);
       } else {
         // Multiple RPC endpoints for better reliability
+        // Mobile browsers prefer different RPC endpoints due to CORS policies
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
         const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-          ? [
-              'https://mainnet.base.org',
-              'https://base-mainnet.g.alchemy.com/v2/demo',
-              'https://base.publicnode.com'
-            ]
+          ? isMobile 
+            ? [
+                'https://base.publicnode.com',
+                'https://base-mainnet.g.alchemy.com/v2/demo',
+                'https://mainnet.base.org'
+              ]
+            : [
+                'https://mainnet.base.org',
+                'https://base-mainnet.g.alchemy.com/v2/demo',
+                'https://base.publicnode.com'
+              ]
           : [
               'https://sepolia.base.org',
               'https://base-sepolia.g.alchemy.com/v2/demo'
@@ -152,6 +161,9 @@ export default function Campaigns() {
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
       console.log('Factory address:', factoryAddress);
+      console.log('Environment:', import.meta.env.VITE_NETWORK);
+      console.log('User agent:', navigator.userAgent);
+      console.log('Is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
       
       // Check network
       try {
@@ -162,6 +174,15 @@ export default function Campaigns() {
       }
       
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
+      
+      // Check if the contract exists at this address
+      console.log('Checking contract code at factory address...');
+      const factoryCode = await provider.getCode(factoryAddress);
+      console.log('Factory contract code length:', factoryCode.length);
+      
+      if (factoryCode === '0x') {
+        throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
+      }
       
       console.log('Calling getAllCampaigns...');
       const campaignAddresses = await factory.getAllCampaigns();
