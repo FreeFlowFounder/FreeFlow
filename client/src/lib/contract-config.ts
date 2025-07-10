@@ -24,7 +24,7 @@ export const CONTRACTS: ContractAddresses = {
   },
   CampaignFactory: {
     testnet: "0xb7fcfdff9e396f1c0c7bea1a3d6acae5116bf763",
-    mainnet: "0xb76bd8906bcd73f03af1e0ff083fc1d5e59a7cb6",
+    mainnet: "0xd4CB623035a6c61a6539D8cFEE6DEc4eA2eeC5F5",
   },
   FeeDistributor: {
     testnet: "0xd0875f419267bf80927160a7324c1dc94fbab269",
