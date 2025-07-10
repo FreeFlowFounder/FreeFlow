@@ -115,14 +115,25 @@ export default function Campaigns() {
         
         console.log('Trying RPC providers:', rpcUrls);
         
-        // Try each RPC endpoint until one works
+        // Try each RPC endpoint until one works (with mobile-friendly timeouts)
         let workingProvider = null;
         for (const rpcUrl of rpcUrls) {
           try {
             console.log('Trying RPC:', rpcUrl);
-            const testProvider = new ethers.JsonRpcProvider(rpcUrl);
-            // Test the connection
-            await testProvider.getNetwork();
+            const testProvider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+              staticNetwork: true,
+              batchMaxCount: 1,
+              batchMaxSize: 1024,
+              polling: false
+            });
+            
+            // Test connection with timeout for mobile
+            const networkPromise = testProvider.getNetwork();
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 8000)
+            );
+            
+            await Promise.race([networkPromise, timeoutPromise]);
             workingProvider = testProvider;
             console.log('Successfully connected to:', rpcUrl);
             break;
@@ -184,11 +195,16 @@ export default function Campaigns() {
     if (window.ethereum) {
       provider = new ethers.BrowserProvider(window.ethereum);
     } else {
-      // Fallback to public RPC for Base mainnet
+      // Use the fastest RPC for mobile
       const rpcUrl = import.meta.env.VITE_NETWORK === 'mainnet' 
-        ? 'https://mainnet.base.org'
+        ? 'https://base.publicnode.com'
         : 'https://sepolia.base.org';
-      provider = new ethers.JsonRpcProvider(rpcUrl);
+      provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+        staticNetwork: true,
+        batchMaxCount: 1,
+        batchMaxSize: 1024,
+        polling: false
+      });
     }
     
     const campaignAbi = [
