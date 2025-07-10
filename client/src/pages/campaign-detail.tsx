@@ -153,58 +153,49 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates with retry logic
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        while (retryCount < maxRetries) {
-          try {
-            console.log(`🔍 Fetching updates for campaign (attempt ${retryCount + 1}):`, contractAddress);
-            
-            // Create a contract instance specifically for updates
-            const updateContract = new ethers.Contract(
-              contractAddress,
-              [
-                "function getUpdateCount() view returns (uint256)",
-                "function getUpdate(uint256) view returns (string, uint256)"
-              ],
-              provider
-            );
-            
-            const updateCount = await updateContract.getUpdateCount();
-            console.log('✅ Update count:', Number(updateCount));
-            
+        // Fetch campaign updates (single attempt, optimized)
+        try {
+          console.log('Fetching updates for campaign:', contractAddress);
+          
+          // Use the same contract instance to avoid multiple connections
+          const updateCount = await campaignContract.getUpdateCount();
+          console.log('Update count:', Number(updateCount));
+          
+          if (Number(updateCount) > 0) {
             const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
             
+            // Fetch all updates in parallel for better performance
+            const updatePromises = [];
             for (let i = 0; i < Number(updateCount); i++) {
-              try {
-                const [message, timestamp] = await updateContract.getUpdate(i);
-                campaignUpdates.push({ message, timestamp: Number(timestamp) });
-                console.log(`✅ Loaded update ${i}: "${message.slice(0, 50)}..."`);
-              } catch (updateErr) {
-                console.log(`❌ Failed to fetch update ${i}:`, updateErr);
-              }
+              updatePromises.push(
+                campaignContract.getUpdate(i).catch(err => {
+                  console.log(`Failed to fetch update ${i}:`, err);
+                  return null;
+                })
+              );
             }
+            
+            const updateResults = await Promise.all(updatePromises);
+            
+            updateResults.forEach((result, index) => {
+              if (result) {
+                const [message, timestamp] = result;
+                campaignUpdates.push({ message, timestamp: Number(timestamp) });
+              }
+            });
             
             // Sort updates by timestamp (newest first)
             campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
             setUpdates(campaignUpdates);
             
-            console.log(`🎉 Successfully loaded ${campaignUpdates.length} updates for campaign detail page`);
-            break; // Success, exit retry loop
-            
-          } catch (updateErr) {
-            console.log(`❌ Failed to fetch campaign updates (attempt ${retryCount + 1}):`, updateErr);
-            retryCount++;
-            
-            if (retryCount < maxRetries) {
-              // Wait 1 second before retry
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
-              console.log('❌ All update fetch attempts failed');
-              setUpdates([]); // Set empty array after all retries fail
-            }
+            console.log(`Successfully loaded ${campaignUpdates.length} updates`);
+          } else {
+            setUpdates([]);
           }
+          
+        } catch (updateErr) {
+          console.log('Failed to fetch campaign updates:', updateErr);
+          setUpdates([]);
         }
         
       } catch (err) {
@@ -367,8 +358,6 @@ export default function CampaignDetail() {
     
     setIsRefreshingUpdates(true);
     try {
-      console.log('🔄 Manually refreshing updates for:', params.id);
-      
       const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
       const updateContract = new ethers.Contract(
         params.id,
@@ -380,30 +369,44 @@ export default function CampaignDetail() {
       );
       
       const updateCount = await updateContract.getUpdateCount();
-      console.log('🔄 Manual refresh - Update count:', Number(updateCount));
       
-      const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-      
-      for (let i = 0; i < Number(updateCount); i++) {
-        try {
-          const [message, timestamp] = await updateContract.getUpdate(i);
-          campaignUpdates.push({ message, timestamp: Number(timestamp) });
-          console.log(`🔄 Manual refresh - Update ${i}: "${message.slice(0, 50)}..."`);
-        } catch (updateErr) {
-          console.log(`🔄 Manual refresh failed for update ${i}:`, updateErr);
+      if (Number(updateCount) > 0) {
+        const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
+        
+        // Fetch all updates in parallel
+        const updatePromises = [];
+        for (let i = 0; i < Number(updateCount); i++) {
+          updatePromises.push(
+            updateContract.getUpdate(i).catch(() => null)
+          );
         }
+        
+        const updateResults = await Promise.all(updatePromises);
+        
+        updateResults.forEach((result) => {
+          if (result) {
+            const [message, timestamp] = result;
+            campaignUpdates.push({ message, timestamp: Number(timestamp) });
+          }
+        });
+        
+        campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
+        setUpdates(campaignUpdates);
+        
+        toast({
+          title: 'Updates Refreshed',
+          description: `Found ${campaignUpdates.length} updates`,
+        });
+      } else {
+        setUpdates([]);
+        toast({
+          title: 'No Updates',
+          description: 'This campaign has no updates yet',
+        });
       }
       
-      campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-      setUpdates(campaignUpdates);
-      
-      toast({
-        title: 'Updates Refreshed',
-        description: `Found ${campaignUpdates.length} updates`,
-      });
-      
     } catch (error) {
-      console.error('🔄 Manual refresh failed:', error);
+      console.error('Manual refresh failed:', error);
       toast({
         title: 'Refresh Failed',
         description: 'Could not refresh updates',
