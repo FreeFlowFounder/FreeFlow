@@ -153,47 +153,60 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates (simplified approach matching working modal)
-        try {
-          console.log('🔍 Fetching updates for campaign:', contractAddress);
-          console.log('🔍 Campaign title:', title);
-          console.log('🔍 Campaign owner:', owner);
-          
-          // Create a contract instance specifically for updates
-          const updateContract = new ethers.Contract(
-            contractAddress,
-            [
-              "function getUpdateCount() view returns (uint256)",
-              "function getUpdate(uint256) view returns (string, uint256)"
-            ],
-            provider
-          );
-          
-          const updateCount = await updateContract.getUpdateCount();
-          console.log('✅ Update count:', Number(updateCount));
-          
-          const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-          
-          for (let i = 0; i < Number(updateCount); i++) {
-            try {
-              const [message, timestamp] = await updateContract.getUpdate(i);
-              campaignUpdates.push({ message, timestamp: Number(timestamp) });
-              console.log(`✅ Loaded update ${i}: "${message.slice(0, 50)}..."`);
-            } catch (updateErr) {
-              console.log(`❌ Failed to fetch update ${i}:`, updateErr);
+        // Fetch campaign updates with retry logic
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            console.log(`🔍 Fetching updates for campaign (attempt ${retryCount + 1}):`, contractAddress);
+            
+            // Create a contract instance specifically for updates
+            const updateContract = new ethers.Contract(
+              contractAddress,
+              [
+                "function getUpdateCount() view returns (uint256)",
+                "function getUpdate(uint256) view returns (string, uint256)"
+              ],
+              provider
+            );
+            
+            const updateCount = await updateContract.getUpdateCount();
+            console.log('✅ Update count:', Number(updateCount));
+            
+            const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
+            
+            for (let i = 0; i < Number(updateCount); i++) {
+              try {
+                const [message, timestamp] = await updateContract.getUpdate(i);
+                campaignUpdates.push({ message, timestamp: Number(timestamp) });
+                console.log(`✅ Loaded update ${i}: "${message.slice(0, 50)}..."`);
+              } catch (updateErr) {
+                console.log(`❌ Failed to fetch update ${i}:`, updateErr);
+              }
+            }
+            
+            // Sort updates by timestamp (newest first)
+            campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
+            setUpdates(campaignUpdates);
+            
+            console.log(`🎉 Successfully loaded ${campaignUpdates.length} updates for campaign detail page`);
+            break; // Success, exit retry loop
+            
+          } catch (updateErr) {
+            console.log(`❌ Failed to fetch campaign updates (attempt ${retryCount + 1}):`, updateErr);
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+              // Wait 1 second before retry
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+              console.log('❌ All update fetch attempts failed');
+              setUpdates([]); // Set empty array after all retries fail
             }
           }
-          
-          // Sort updates by timestamp (newest first)
-          campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-          setUpdates(campaignUpdates);
-          
-          console.log(`🎉 Successfully loaded ${campaignUpdates.length} updates for campaign detail page`);
-          
-        } catch (updateErr) {
-          console.log('❌ Failed to fetch campaign updates:', updateErr);
-          setUpdates([]); // Set empty array on any error
         }
+        
       } catch (err) {
         console.error('Failed to fetch campaign data:', err);
         setError('Failed to load campaign data. Please check the campaign address.');
@@ -532,10 +545,7 @@ export default function CampaignDetail() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Debug info */}
-                  <div className="text-xs text-gray-400 border-b pb-2">
-                    Debug: {updates.length} updates found | Campaign: {campaign?.contractAddress || 'unknown'}
-                  </div>
+
                   
                   {updates.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">No updates yet.</p>
