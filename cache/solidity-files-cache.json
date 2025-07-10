@@ -302,6 +302,82 @@
         "IERC20"
       ]
     },
+    "C:\\Users\\Travis\\freeflow-campaign\\freeflow-mvp\\contracts\\CampaignFactory-Fixed-v4.sol": {
+      "lastModificationDate": 1752115675219,
+      "contentHash": "fed7f939e490dcad7db81d548396f541",
+      "sourceName": "contracts/CampaignFactory-Fixed-v4.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Campaign-Fixed-v4.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "CampaignFactory"
+      ]
+    },
+    "C:\\Users\\Travis\\freeflow-campaign\\freeflow-mvp\\contracts\\Campaign-Fixed-v4.sol": {
+      "lastModificationDate": 1752115665714,
+      "contentHash": "158d5ce3571bb1b3d8599b17d93f4726",
+      "sourceName": "contracts/Campaign-Fixed-v4.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Campaign",
+        "IERC20"
+      ]
+    },
     "C:\\Users\\Travis\\freeflow-campaign\\freeflow-mvp\\contracts\\FeeDistributor.sol": {
       "lastModificationDate": 1751061862514,
       "contentHash": "3a274764ced076ccc4f18ecf2e310ad6",
