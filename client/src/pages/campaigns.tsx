@@ -245,6 +245,37 @@ export default function Campaigns() {
       console.log('Campaign addresses returned:', campaignAddresses.length);
       console.log('Campaign addresses:', campaignAddresses);
       
+      // Debug: Check if we got any campaigns
+      if (campaignAddresses.length === 0) {
+        console.log('No campaigns found at factory address. This could mean:');
+        console.log('1. No campaigns have been created yet');
+        console.log('2. Wrong factory address');
+        console.log('3. Different network than expected');
+        console.log('Factory address being used:', factoryAddress);
+        console.log('Network connected to:', await provider.getNetwork());
+        
+        // Try alternative RPC to see if it's an RPC sync issue
+        console.log('Trying alternative RPC to check for RPC sync issues...');
+        try {
+          const altProvider = new ethers.JsonRpcProvider('https://mainnet.base.org', {
+            chainId: 8453,
+            name: 'base'
+          });
+          const altFactory = new ethers.Contract(factoryAddress, factoryAbi, altProvider);
+          const altCampaigns = await altFactory.getAllCampaigns();
+          console.log('Alternative RPC campaigns found:', altCampaigns.length);
+          
+          if (altCampaigns.length > 0) {
+            console.log('RPC sync issue detected! Using alternative RPC...');
+            provider = altProvider;
+            const retryAddresses = await factory.getAllCampaigns();
+            console.log('Retry with alt RPC:', retryAddresses.length);
+          }
+        } catch (e) {
+          console.log('Alternative RPC also failed:', e);
+        }
+      }
+      
       setAllCampaignAddresses(campaignAddresses);
       
       if (campaignAddresses.length === 0) {
