@@ -547,28 +547,15 @@ export default function Campaigns() {
           blockchainRaised = ethBalance; // Use ETH as base for progress tracking
           console.log(`Campaign ${address} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
         } catch (error) {
-          console.warn('Could not get total balance, trying fallback method:', error);
-          // Fallback to original method if getTotalBalance fails
-          if (isActive) {
-            const withdrawableResult = await campaignContract.getWithdrawableAmount();
-            const [ethAvailable] = withdrawableResult;
-            blockchainRaised = ethers.formatEther(ethAvailable);
-          } else {
-            try {
-              const [withdrawableResult, feeResult] = await Promise.all([
-                campaignContract.getWithdrawableAmount(),
-                campaignContract.getFeeBalances()
-              ]);
-              const [ethWithdrawable] = withdrawableResult;
-              const [ethFees] = feeResult;
-              
-              const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
-              blockchainRaised = ethers.formatEther(totalRaised);
-            } catch (error) {
-              console.warn('Could not get blockchain data for ended campaign:', error);
-              const contractBalance = await provider.getBalance(address);
-              blockchainRaised = ethers.formatEther(contractBalance);
-            }
+          console.warn('Could not get total balance:', error);
+          // Use provider.getBalance as fallback for consistency
+          try {
+            const contractBalance = await provider.getBalance(address);
+            blockchainRaised = ethers.formatEther(contractBalance);
+            console.log(`Campaign ${address} using provider balance fallback: ${blockchainRaised} ETH`);
+          } catch (fallbackError) {
+            console.warn('Could not get contract balance, using 0:', fallbackError);
+            blockchainRaised = '0';
           }
         }
         

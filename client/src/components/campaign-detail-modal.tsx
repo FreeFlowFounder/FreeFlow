@@ -116,22 +116,15 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         blockchainRaised = ethBalance; // Use ETH as base for progress tracking
         console.log(`Modal: Campaign ${campaign.contractAddress} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
       } catch (error) {
-        console.warn('Could not get total balance, trying fallback method:', error);
-        // Fallback to original method if getTotalBalance fails
-        if (isActive) {
-          const [ethAvailable] = await campaignContract.getWithdrawableAmount();
-          blockchainRaised = ethers.formatEther(ethAvailable);
-        } else {
-          try {
-            const [ethAvailable] = await campaignContract.getWithdrawableAmount();
-            const [currentFees] = await campaignContract.getFeeBalances();
-            const totalFinalBalance = ethAvailable + currentFees;
-            blockchainRaised = ethers.formatEther(totalFinalBalance);
-          } catch (error) {
-            console.log('Could not get fees for ended campaign, using withdrawable amount');
-            const [ethAvailable] = await campaignContract.getWithdrawableAmount();
-            blockchainRaised = ethers.formatEther(ethAvailable);
-          }
+        console.warn('Could not get total balance:', error);
+        // Use provider.getBalance as fallback for consistency
+        try {
+          const contractBalance = await provider.getBalance(campaign.contractAddress);
+          blockchainRaised = ethers.formatEther(contractBalance);
+          console.log(`Modal: Campaign ${campaign.contractAddress} using provider balance fallback: ${blockchainRaised} ETH`);
+        } catch (fallbackError) {
+          console.warn('Could not get contract balance, using 0:', fallbackError);
+          blockchainRaised = '0';
         }
       }
       

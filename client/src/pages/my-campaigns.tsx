@@ -174,12 +174,13 @@ export default function MyCampaigns() {
             console.log(`My Campaigns: Campaign ${address} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
           } catch (error) {
             console.log(`Failed to get getTotalBalance for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
-            // Fallback to withdrawable amount
+            // Use provider.getBalance as fallback for consistency
             try {
-              [ethAvailable] = await campaignContract.getWithdrawableAmount();
-              blockchainRaised = ethers.formatEther(ethAvailable);
+              const contractBalance = await provider.getBalance(address);
+              blockchainRaised = ethers.formatEther(contractBalance);
+              console.log(`My campaigns: Campaign ${address} using provider balance fallback: ${blockchainRaised} ETH`);
             } catch (fallbackError) {
-              console.log(`Fallback getWithdrawableAmount also failed for ${address}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
+              console.log(`Could not get contract balance for ${address}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
               blockchainRaised = '0';
             }
           }
