@@ -568,8 +568,8 @@ export default function Campaigns() {
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
-        // Only show debug for wallet browsers to avoid breaking non-wallet browsers
-        if (window.ethereum && wallet) {
+        // Show debug for any browser with ethereum to help troubleshoot
+        if (window.ethereum) {
           const debugData = {
             address,
             connectedWallet: wallet ? 'Yes' : 'No',
@@ -578,7 +578,8 @@ export default function Campaigns() {
             goal: `${goalInEth} ETH`,
             isActive,
             provider: provider?.constructor?.name || 'None',
-            walletAddress: wallet?.address || 'Not connected'
+            walletAddress: wallet?.address || 'Not connected',
+            browserType: navigator.userAgent.includes('CoinbaseWallet') ? 'Coinbase' : 'Other'
           };
           
           setDebugInfo(prev => ({ ...prev, [address]: debugData }));
@@ -844,8 +845,8 @@ export default function Campaigns() {
         </div>
       </div>
 
-      {/* Debug Info Panel for Mobile Wallet Browsers Only */}
-      {Object.keys(debugInfo).length > 0 && window.ethereum && (
+      {/* Debug Info Panel for Wallet Browsers */}
+      {Object.keys(debugInfo).length > 0 && (
         <div className="fixed top-16 right-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
             <span className="font-bold">Debug Info</span>
