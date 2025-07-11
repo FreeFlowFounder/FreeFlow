@@ -328,6 +328,17 @@ export default function Campaigns() {
     let backupProvider;
     
     if (window.ethereum) {
+      // Force Base network before using wallet provider
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }], // Base mainnet
+        });
+        console.log('Ensured wallet is on Base network');
+      } catch (error) {
+        console.warn('Could not switch wallet to Base network:', error);
+      }
+      
       provider = new ethers.BrowserProvider(window.ethereum);
       console.log('Using wallet RPC provider for campaign loading');
     } else {
@@ -405,7 +416,16 @@ export default function Campaigns() {
               owner = await backupContract.owner();
               console.log(`Successfully got owner using backup RPC provider`);
             } else if (window.ethereum) {
-              // Last resort: try forcing wallet provider
+              // Last resort: try forcing wallet provider (ensure Base network)
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_switchEthereumChain',
+                  params: [{ chainId: '0x2105' }], // Base mainnet
+                });
+              } catch (networkError) {
+                console.warn('Could not switch to Base for backup wallet call');
+              }
+              
               const walletProvider = new ethers.BrowserProvider(window.ethereum);
               const walletContract = new ethers.Contract(address, campaignAbi, walletProvider);
               owner = await walletContract.owner();
