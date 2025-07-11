@@ -54,7 +54,6 @@ export default function CampaignDetail() {
           "function owner() view returns (address)",
           "function campaignOwner() view returns (address)",
           "function goal() view returns (uint256)",
-          "function getTotalBalance() view returns (uint256,uint256)",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
           "function postUpdate(string memory newUpdate)",
@@ -102,39 +101,14 @@ export default function CampaignDetail() {
           throw new Error(`Failed to get basic campaign data: ${error.message}`);
         }
         
-        // Use getTotalBalance() method for consistency with other pages
+        // Use direct contract balance approach (same as Balance Display component)
         try {
-          const totalBalance = await campaignContract.getTotalBalance();
-          ethAvailable = totalBalance[0]; // ethBalance is first return value
-          
-          // Get USDC balance separately
-          const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
-          let usdcAmount = '0';
-          try {
-            const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
-            const usdcBalance = await usdcContract.balanceOf(contractAddress);
-            usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
-          } catch (error) {
-            console.log('Failed to fetch USDC balance:', error);
-          }
-          
-          // Only log FLW balance if enabled
-          const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
-          const ethBalance = ethers.formatEther(totalBalance[0]);
-          const flwBalance = flwEnabled ? ethers.formatEther(totalBalance[1]) : '0';
-          
-          console.log(`Campaign detail: getTotalBalance() returned: ${ethBalance} ETH, ${usdcAmount} USDC${flwEnabled ? `, ${flwBalance} FLW` : ''}`);
-        } catch (error) {
-          console.warn('getTotalBalance() failed, using direct contract balance:', error);
-          // Fallback to direct contract balance
-          try {
-            const balance = await provider.getBalance(contractAddress);
-            ethAvailable = balance;
-            console.log('Contract balance (fallback):', ethers.formatEther(balance));
-          } catch (balanceError: any) {
-            console.log('Balance check failed:', balanceError.message);
-            ethAvailable = BigInt(0);
-          }
+          const balance = await provider.getBalance(contractAddress);
+          ethAvailable = balance;
+          console.log('Contract balance:', ethers.formatEther(balance));
+        } catch (balanceError: any) {
+          console.log('Balance check failed:', balanceError.message);
+          ethAvailable = BigInt(0);
         }
         
         const goalInEth = ethers.formatEther(goal);
@@ -145,8 +119,7 @@ export default function CampaignDetail() {
         const blockchainRaised = ethers.formatEther(ethAvailable);
         console.log('Using direct balance for campaign:', blockchainRaised);
         
-        // Clear cache and sync with progress tracker to ensure fresh prices
-        ProgressTracker.clearCampaignData(contractAddress);
+        // Sync with progress tracker (don't clear cache as it may reset progress)
         await ProgressTracker.syncWithBlockchain(contractAddress, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)

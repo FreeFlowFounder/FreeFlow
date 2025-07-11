@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 interface CryptoPrices {
@@ -33,9 +32,19 @@ export function useCryptoPrices(): PriceData {
     staleTime: 25000, // Consider data stale after 25 seconds
   });
 
+  const ethPrice = data?.ethereum?.usd || 0;
+  const usdcPrice = data?.['usd-coin']?.usd || 1;
+  
+  // Debug logging to track price source (can be removed in production)
+  if (ethPrice > 0) {
+    console.log(`useCryptoPrices: ETH price = $${ethPrice}, USDC price = $${usdcPrice}`);
+  } else if (isLoading) {
+    console.log(`useCryptoPrices: Loading prices, using fallback ETH price = $3000`);
+  }
+
   return {
-    eth: data?.ethereum?.usd || 0,
-    usdc: data?.['usd-coin']?.usd || 1, // USDC should always be ~$1
+    eth: ethPrice || 3000, // Use reasonable fallback if price is 0
+    usdc: usdcPrice || 1, // USDC should always be ~$1
     isLoading,
     error: error?.message || null,
   };
@@ -49,18 +58,28 @@ export function calculateUSDValue(
 ): number {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
+  let usdValue = 0;
   switch (token) {
     case 'ETH':
-      return numAmount * prices.eth;
+      usdValue = numAmount * prices.eth;
+      break;
     case 'USDC':
-      return numAmount * prices.usdc;
+      usdValue = numAmount * prices.usdc;
+      break;
     case 'FLW':
       // For now, return 0 since FLW price isn't available
       // This can be updated when FLW gets listed on exchanges
-      return 0;
+      usdValue = 0;
+      break;
     default:
-      return 0;
+      usdValue = 0;
   }
+  
+  // Debug logging for USD calculations (can be removed in production)
+  if (numAmount > 0) {
+    console.log(`calculateUSDValue: ${numAmount} ${token} × $${token === 'ETH' ? prices.eth : prices.usdc} = $${usdValue.toFixed(2)}`);
+  }
+  return usdValue;
 }
 
 // Format USD value for display

@@ -411,7 +411,8 @@ export class CampaignContract {
 
   async getTotalBalance(): Promise<{ eth: string; tokens: Record<string, string> }> {
     try {
-      // Use the same approach as old frontend: direct balance check
+      // NOTE: This method uses provider.getBalance() directly, NOT a contract function
+      // The deployed contracts may not have getTotalBalance() function
       const contractAddress = await this.contract.getAddress();
       const ethBalance = await this.signer.provider!.getBalance(contractAddress);
       console.log('Direct contract ETH balance:', ethers.formatEther(ethBalance));
