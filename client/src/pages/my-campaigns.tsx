@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, TrendingUp, Users, DollarSign, Clock, Target } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { ProgressTracker } from '../lib/progress-tracker';
 
 export default function MyCampaigns() {
   const { wallet } = useWallet();
+  const [, setLocation] = useLocation();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -194,6 +195,17 @@ export default function MyCampaigns() {
           const endDate = new Date(deadlineNum * 1000);
           const now = new Date();
           
+          // Check withdrawable amount for ended campaigns (for withdraw button)
+          let hasWithdrawableFunds = false;
+          if (!isActive) {
+            try {
+              const [withdrawableEth] = await campaignContract.getWithdrawableAmount();
+              hasWithdrawableFunds = withdrawableEth > 0;
+            } catch (error) {
+              console.log(`Failed to check withdrawable amount for ${address}:`, error);
+            }
+          }
+          
           const timeLeft = isActive ? 
             Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days left' :
             'Ended';
@@ -220,6 +232,7 @@ export default function MyCampaigns() {
             progress,
             timeLeft,
             status,
+            hasWithdrawableFunds, // Add this for withdraw button logic
           } as Campaign;
           
           myCampaigns.push(campaign);
@@ -445,24 +458,18 @@ export default function MyCampaigns() {
                           variant="outline" 
                           size="sm"
                           onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('View Details clicked, navigating to:', `/campaign/${campaign.contractAddress}`);
-                            console.log('Campaign object:', campaign);
-                            console.log('Contract address:', campaign.contractAddress);
-                            
-                            // Use programmatic navigation
+                            console.log('View Details clicked, contract address:', campaign.contractAddress);
                             if (campaign.contractAddress) {
-                              window.location.href = `/campaign/${campaign.contractAddress}`;
+                              setLocation(`/campaign/${campaign.contractAddress}`);
                             } else {
-                              console.error('No contract address found for campaign');
+                              console.error('No contract address found');
                             }
                           }}
                         >
                           <Edit className="w-4 h-4 mr-2" />
                           View Details
                         </Button>
-                        {campaign.status === 'ended' && parseFloat(campaign.raised) > 0 && (
+                        {campaign.status === 'ended' && (campaign as any).hasWithdrawableFunds && (
                           <Button 
                             onClick={() => handleWithdraw(campaign.contractAddress)}
                             disabled={withdrawing}
