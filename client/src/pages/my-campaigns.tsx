@@ -1,792 +1,509 @@
 import { useState, useEffect } from 'react';
-import { useRoute } from 'wouter';
-import { ArrowLeft, Heart, Clock, Target, Copy, Share2 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Plus, Edit, TrendingUp, Users, DollarSign, Clock, Target } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { PageContainer } from '@/components/page-container';
-import { BalanceDisplay } from '@/components/balance-display';
 import { useWallet } from '@/hooks/use-wallet';
-import { useToast } from '@/hooks/use-toast';
 import { Campaign } from '@/types/campaign';
-import { ethers } from 'ethers';
-import { ProgressTracker } from '@/lib/progress-tracker';
 
-export default function CampaignDetail() {
-  const [, params] = useRoute('/campaign/:id');
+import { ethers } from 'ethers';
+import { getCampaignContract } from '@/lib/contracts';
+// @ts-ignore
+import { getAddress } from '../lib/contract-config.js';
+import { ProgressTracker } from '../lib/progress-tracker';
+
+export default function MyCampaigns() {
   const { wallet } = useWallet();
-  const { toast } = useToast();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [selectedToken, setSelectedToken] = useState('ETH');
-  const [amount, setAmount] = useState('');
-  const [isDonating, setIsDonating] = useState(false);
+  const [, setLocation] = useLocation();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [updates, setUpdates] = useState<Array<{ message: string; timestamp: number }>>([]);
-  const [newUpdate, setNewUpdate] = useState('');
-  const [isPostingUpdate, setIsPostingUpdate] = useState(false);
-  const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
 
   useEffect(() => {
-    const fetchCampaignData = async () => {
-      console.log('=== CAMPAIGN DETAIL PAGE LOADING ===');
-      console.log('Params:', params);
-      console.log('Campaign ID:', params?.id);
-      
-      if (!params?.id) {
-        console.log('No campaign ID found in params');
-        return;
-      }
-      
+    if (wallet) {
+      fetchMyCampaigns();
+    } else {
+      setCampaigns([]);
+      setLoading(false);
+    }
+  }, [wallet]);
+
+  const fetchMyCampaigns = async () => {
+    try {
       setLoading(true);
       setError(null);
       
-      try {
-        const contractAddress = params.id;
-        console.log('Loading campaign with contract address:', contractAddress);
-        
-        // Use a basic provider for reading data (no wallet required)
-        const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
-        
-        const campaignAbi = [
-          "function title() view returns (string)",
-          "function imageUrl() view returns (string)",
-          "function deadline() view returns (uint256)",
-          "function owner() view returns (address)",
-          "function campaignOwner() view returns (address)",
-          "function goal() view returns (uint256)",
-          "function getTotalBalance() view returns (uint256,uint256)",
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)",
-          "function postUpdate(string memory newUpdate)",
-          "function hasEnded() view returns (bool)",
-          "function donateETH() payable"
-        ];
-        
-        const erc20Abi = [
-          "function balanceOf(address) view returns (uint256)"
-        ];
-        
-        const campaignContract = new ethers.Contract(contractAddress, campaignAbi, provider);
-        
-        // Fetch campaign data with error handling
-        let title, imageUrl, deadline, owner, goal, ethAvailable;
-        
-        try {
-          // Try owner() first (v4 contracts), then campaignOwner() (older contracts)
-          try {
-            owner = await campaignContract.owner();
-          } catch (ownerError) {
-            console.log('owner() failed, trying campaignOwner()');
-            owner = await campaignContract.campaignOwner();
-          }
-        } catch (error: any) {
-          throw new Error(`Invalid campaign contract: ${error.message}`);
-        }
-        
-        try {
-          title = await campaignContract.title();
-          if (!title || title.trim() === '') {
-            throw new Error('Campaign has no title');
-          }
-        } catch (error: any) {
-          throw new Error(`Failed to get campaign title: ${error.message}`);
-        }
-        
-        try {
-          [imageUrl, deadline, goal] = await Promise.all([
-            campaignContract.imageUrl().catch(() => ''),
-            campaignContract.deadline(),
-            campaignContract.goal()
-          ]);
-        } catch (error: any) {
-          throw new Error(`Failed to get basic campaign data: ${error.message}`);
-        }
-        
-        // Use getTotalBalance() method for consistency with other pages
-        try {
-          const totalBalance = await campaignContract.getTotalBalance();
-          ethAvailable = totalBalance[0]; // ethBalance is first return value
-          
-          // Get USDC balance separately
-          const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
-          let usdcAmount = '0';
-          try {
-            const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
-            const usdcBalance = await usdcContract.balanceOf(contractAddress);
-            usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
-          } catch (error) {
-            console.log('Failed to fetch USDC balance:', error);
-          }
-          
-          // Only log FLW balance if enabled
-          const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
-          const ethBalance = ethers.formatEther(totalBalance[0]);
-          const flwBalance = flwEnabled ? ethers.formatEther(totalBalance[1]) : '0';
-          
-          console.log(`Campaign detail: getTotalBalance() returned: ${ethBalance} ETH, ${usdcAmount} USDC${flwEnabled ? `, ${flwBalance} FLW` : ''}`);
-        } catch (error) {
-          console.warn('getTotalBalance() failed, using direct contract balance:', error);
-          // Fallback to direct contract balance
-          try {
-            const balance = await provider.getBalance(contractAddress);
-            ethAvailable = balance;
-            console.log('Contract balance (fallback):', ethers.formatEther(balance));
-          } catch (balanceError: any) {
-            console.log('Balance check failed:', balanceError.message);
-            ethAvailable = BigInt(0);
-          }
-        }
-        
-        const goalInEth = ethers.formatEther(goal);
-        const deadlineNum = Number(deadline);
-        const isActive = deadlineNum * 1000 > Date.now();
-        
-        // Use direct balance for now (simplest approach)
-        const blockchainRaised = ethers.formatEther(ethAvailable);
-        console.log('Using direct balance for campaign:', blockchainRaised);
-        
-        // Sync with progress tracker
-        await ProgressTracker.syncWithBlockchain(contractAddress, goalInEth, blockchainRaised, isActive);
-        
-        // Get progress from tracker (this will be locked for ended campaigns)
-        const raisedInEth = await ProgressTracker.getTotalRaisedETH(contractAddress);
-        const progress = ProgressTracker.getProgressPercentage(contractAddress);
-        const goalMet = progress >= 100;
-        const endDate = new Date(deadlineNum * 1000);
-        const now = new Date();
-        
-        const timeLeft = isActive ? 
-          Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days left' :
-          'Ended';
-        
-        const status: 'active' | 'ended' | 'goal_met' = 
-          !isActive ? 'ended' : 
-          goalMet ? 'goal_met' : 
-          'active';
+      if (!wallet) return;
 
-        const campaignData: Campaign = {
-          id: contractAddress,
-          title,
-          description: `Campaign created by ${owner.slice(0, 6)}...${owner.slice(-4)}`,
-          goal: goalInEth,
-          raised: raisedInEth,
-          creator: owner,
-          contractAddress,
-          imageUrl: imageUrl || undefined,
-          duration: Math.ceil((deadlineNum * 1000 - Date.now()) / (1000 * 60 * 60 * 24)),
-          endDate: endDate.toISOString(),
-          isActive,
-          acceptedTokens: ['ETH', 'USDC'],
-          createdAt: new Date().toISOString(),
-          progress,
-          timeLeft,
-          status,
-        };
-        
-        setCampaign(campaignData);
+      // Use simple provider like old frontend
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const currentUser = await signer.getAddress();
 
-        // Fetch campaign updates (single attempt, optimized)
-        try {
-          console.log('Fetching updates for campaign:', contractAddress);
-          
-          // Use the same contract instance to avoid multiple connections
-          const updateCount = await campaignContract.getUpdateCount();
-          console.log('Update count:', Number(updateCount));
-          
-          if (Number(updateCount) > 0) {
-            const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-            
-            // Fetch all updates in parallel for better performance
-            const updatePromises = [];
-            for (let i = 0; i < Number(updateCount); i++) {
-              updatePromises.push(
-                campaignContract.getUpdate(i).catch(err => {
-                  console.log(`Failed to fetch update ${i}:`, err);
-                  return null;
-                })
-              );
-            }
-            
-            const updateResults = await Promise.all(updatePromises);
-            
-            updateResults.forEach((result, index) => {
-              if (result) {
-                const [message, timestamp] = result;
-                campaignUpdates.push({ message, timestamp: Number(timestamp) });
-              }
-            });
-            
-            // Sort updates by timestamp (newest first)
-            campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-            setUpdates(campaignUpdates);
-            
-            console.log(`Successfully loaded ${campaignUpdates.length} updates`);
-          } else {
-            setUpdates([]);
-          }
-          
-        } catch (updateErr) {
-          console.log('Failed to fetch campaign updates:', updateErr);
-          setUpdates([]);
-        }
-        
-      } catch (err) {
-        console.error('Failed to fetch campaign data:', err);
-        setError('Failed to load campaign data. Please check the campaign address.');
-      } finally {
-        setLoading(false);
-      }
-    };
+      const factoryAbi = [
+        "function getAllCampaigns() view returns (address[])"
+      ];
 
-    fetchCampaignData();
-  }, [params?.id]);
-
-  const handleDonate = async () => {
-    if (!wallet) {
-      toast({
-        title: 'Wallet Required',
-        description: 'Please connect your wallet to donate',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid donation amount',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsDonating(true);
-    try {
-      const campaignContract = new ethers.Contract(
-        params?.id || '', 
-        ["function donateETH() payable"], 
-        wallet.signer
-      );
-
-      // Convert amount to wei for ETH donation
-      const amountInWei = ethers.parseEther(amount);
-      
-      // Send donation transaction
-      const tx = await campaignContract.donateETH({ value: amountInWei });
-      await tx.wait();
-      
-      // Record donation in progress tracker
-      await ProgressTracker.recordDonation(
-        params?.id || '',
-        amount,
-        'ETH',
-        tx.hash
-      );
-      
-      toast({
-        title: 'Donation Successful',
-        description: `Successfully donated ${amount} ${selectedToken}! Transaction confirmed.`,
-      });
-      
-      setAmount('');
-      
-      // Refresh campaign data to show updated balance
-      window.location.reload();
-      
-    } catch (error) {
-      console.error('Donation failed:', error);
-      toast({
-        title: 'Donation Failed',
-        description: 'Failed to process donation: ' + (error instanceof Error ? error.message : String(error)),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDonating(false);
-    }
-  };
-
-  const handlePostUpdate = async () => {
-    if (!wallet) {
-      toast({
-        title: 'Wallet Required',
-        description: 'Please connect your wallet to post updates',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!newUpdate.trim()) {
-      toast({
-        title: 'Update Required',
-        description: 'Please enter an update message',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setIsPostingUpdate(true);
-      
-      const campaignContract = new ethers.Contract(
-        params?.id || '', 
-        [
-          "function postUpdate(string memory newUpdate)",
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)"
-        ], 
-        wallet.signer
-      );
-
-      const tx = await campaignContract.postUpdate(newUpdate);
-      await tx.wait();
-
-      toast({
-        title: 'Update Posted',
-        description: 'Your campaign update has been posted successfully',
-      });
-
-      setNewUpdate('');
-      
-      // Wait 1 second then refresh the page to show the new update
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-
-    } catch (err) {
-      console.error('Failed to post update:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to post update: ' + (err instanceof Error ? err.message : String(err)),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsPostingUpdate(false);
-    }
-  };
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: 'Copied',
-      description: 'Address copied to clipboard',
-    });
-  };
-
-  const shareUrl = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
-    toast({
-      title: 'Link Copied',
-      description: 'Campaign link copied to clipboard',
-    });
-  };
-
-  const refreshUpdates = async () => {
-    if (!params?.id) return;
-    
-    setIsRefreshingUpdates(true);
-    try {
-      const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
-      const updateContract = new ethers.Contract(
-        params.id,
-        [
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)"
-        ],
+      const factory = new ethers.Contract(
+        getAddress("CampaignFactory"), 
+        factoryAbi, 
         provider
       );
       
-      const updateCount = await updateContract.getUpdateCount();
+      const campaignAddresses = await factory.getAllCampaigns();
       
-      if (Number(updateCount) > 0) {
-        const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-        
-        // Fetch all updates in parallel
-        const updatePromises = [];
-        for (let i = 0; i < Number(updateCount); i++) {
-          updatePromises.push(
-            updateContract.getUpdate(i).catch(() => null)
-          );
-        }
-        
-        const updateResults = await Promise.all(updatePromises);
-        
-        updateResults.forEach((result) => {
-          if (result) {
-            const [message, timestamp] = result;
-            campaignUpdates.push({ message, timestamp: Number(timestamp) });
+      // Reverse the addresses so newest campaigns (end of array) are processed first
+      const reversedAddresses = [...campaignAddresses].reverse();
+      
+      // Use exact ABI from old frontend
+      const campaignAbi = [
+        "function title() view returns (string)",
+        "function imageUrl() view returns (string)",
+        "function deadline() view returns (uint256)",
+        "function owner() view returns (address)",
+        "function goal() view returns (uint256)",
+        "function getTotalBalance() view returns (uint256,uint256)",
+        "function getWithdrawableAmount() view returns (uint256,uint256)",
+        "function getFeeBalances() view returns (uint256,uint256)"
+      ];
+      
+      const erc20Abi = [
+        "function balanceOf(address) view returns (uint256)"
+      ];
+
+      // Process campaigns one by one to avoid rate limiting
+      const myCampaigns: Campaign[] = [];
+      for (let i = 0; i < reversedAddresses.length; i++) {
+        const address = reversedAddresses[i];
+        try {
+          const campaignContract = new ethers.Contract(address, campaignAbi, provider);
+          
+          // Check if this is a valid campaign contract first
+          let owner;
+          try {
+            owner = await campaignContract.owner();
+          } catch (error) {
+            console.log(`Skipping invalid campaign contract at ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+            continue;
           }
-        });
-        
-        campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-        setUpdates(campaignUpdates);
-        
-        toast({
-          title: 'Updates Refreshed',
-          description: `Found ${campaignUpdates.length} updates`,
-        });
-      } else {
-        setUpdates([]);
-        toast({
-          title: 'No Updates',
-          description: 'This campaign has no updates yet',
-        });
+          
+          // Only include campaigns owned by the current wallet (like old frontend)
+          if (owner.toLowerCase() !== currentUser.toLowerCase()) {
+            continue;
+          }
+
+          // Fetch data with error handling for each field
+          let title, imageUrl, deadline, goal, ethAvailable;
+          
+          try {
+            title = await campaignContract.title();
+            if (!title || title.trim() === '') {
+              console.log(`Campaign ${address} has empty title, skipping`);
+              continue;
+            }
+          } catch (error) {
+            console.log(`Failed to get title for campaign ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+            continue;
+          }
+          
+          try {
+            imageUrl = await campaignContract.imageUrl();
+          } catch (error) {
+            console.log(`Failed to get imageUrl for campaign ${address}, using default`);
+            imageUrl = '';
+          }
+          
+          try {
+            deadline = await campaignContract.deadline();
+            goal = await campaignContract.goal();
+          } catch (error) {
+            console.log(`Failed to get basic campaign data for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+            continue;
+          }
+
+          const goalInEth = ethers.formatEther(goal);
+          
+          const deadlineNum = Number(deadline);
+          const isActive = deadlineNum * 1000 > Date.now();
+          
+          // Get blockchain data using getTotalBalance() method (consistent with other components)
+          let blockchainRaised = '0';
+          try {
+            const totalBalance = await campaignContract.getTotalBalance();
+            const ethBalance = ethers.formatEther(totalBalance[0]); // ethBalance is first return value
+            
+            // Only include FLW balance if enabled
+            const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
+            let totalUSDValue = 0;
+            
+            // Convert ETH to USD
+            if (parseFloat(ethBalance) > 0) {
+              const ethUSDValue = await ProgressTracker.convertEthToUSD(ethBalance);
+              totalUSDValue += parseFloat(ethUSDValue);
+            }
+            
+            // Add USDC value by querying USDC contract directly
+            const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
+            try {
+              const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
+              const usdcBalance = await usdcContract.balanceOf(address);
+              const usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
+              
+              if (parseFloat(usdcAmount) > 0) {
+                const usdcUSDValue = await ProgressTracker.convertToUSD(usdcAmount, 'USDC');
+                totalUSDValue += parseFloat(usdcUSDValue);
+              }
+            } catch (error) {
+              console.log(`Failed to fetch USDC balance for ${address}:`, error);
+            }
+            
+            // Add FLW value if enabled
+            if (flwEnabled) {
+              const flwBalance = ethers.formatEther(totalBalance[1]); // flwBalance is second return value
+              if (parseFloat(flwBalance) > 0) {
+                const flwUSDValue = await ProgressTracker.convertToUSD(flwBalance, 'FLW');
+                totalUSDValue += parseFloat(flwUSDValue);
+              }
+            }
+            
+            blockchainRaised = ethBalance; // Use ETH as base for progress tracking
+            console.log(`My Campaigns: Campaign ${address} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
+          } catch (error) {
+            console.log(`Failed to get getTotalBalance for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+            // Fallback to withdrawable amount
+            try {
+              [ethAvailable] = await campaignContract.getWithdrawableAmount();
+              blockchainRaised = ethers.formatEther(ethAvailable);
+            } catch (fallbackError) {
+              console.log(`Fallback getWithdrawableAmount also failed for ${address}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
+              blockchainRaised = '0';
+            }
+          }
+          
+          // Sync with progress tracker
+          await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
+          
+          // Get progress from tracker (this will be locked for ended campaigns)
+          const raisedInEth = await ProgressTracker.getTotalRaisedETH(address);
+          const progress = ProgressTracker.getProgressPercentage(address);
+          const goalMet = progress >= 100;
+          const endDate = new Date(deadlineNum * 1000);
+          const now = new Date();
+          
+          // Check withdrawable amount for ended campaigns (for withdraw button)
+          let hasWithdrawableFunds = false;
+          if (!isActive) {
+            try {
+              const [withdrawableEth] = await campaignContract.getWithdrawableAmount();
+              hasWithdrawableFunds = withdrawableEth > 0;
+            } catch (error) {
+              console.log(`Failed to check withdrawable amount for ${address}:`, error);
+            }
+          }
+          
+          const timeLeft = isActive ? 
+            Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + ' days left' :
+            'Ended';
+          
+          const status: 'active' | 'ended' | 'goal_met' = 
+            !isActive ? 'ended' : 
+            goalMet ? 'goal_met' : 
+            'active';
+
+          const campaign = {
+            id: address, // Use contract address as ID for proper routing
+            title,
+            description: `Campaign created by ${owner.slice(0, 6)}...${owner.slice(-4)}`,
+            goal: goalInEth,
+            raised: raisedInEth,
+            creator: owner,
+            contractAddress: address,
+            imageUrl: imageUrl || undefined,
+            duration: Math.ceil((deadlineNum * 1000 - Date.now()) / (1000 * 60 * 60 * 24)),
+            endDate: endDate.toISOString(),
+            isActive,
+            acceptedTokens: ['ETH', 'USDC'],
+            createdAt: i.toString(), // Use index as proxy for creation order (lower = newer since we reversed)
+            progress,
+            timeLeft,
+            status,
+            hasWithdrawableFunds, // Add this for withdraw button logic
+          } as Campaign;
+          
+          myCampaigns.push(campaign);
+          
+          // Add small delay to avoid rate limiting
+          if (i < campaignAddresses.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (err) {
+          console.warn(`Skipping campaign (could not load): ${address}`, err);
+        }
       }
+
+      // Sort campaigns by creation order (newest first)
+      const sortedCampaigns = myCampaigns.sort((a, b) => {
+        const aCreated = parseInt(a.createdAt);
+        const bCreated = parseInt(b.createdAt);
+        return aCreated - bCreated; // Lower index = newer since we reversed
+      });
+      
+      setCampaigns(sortedCampaigns);
+      
+    } catch (err) {
+      console.error('Failed to fetch my campaigns:', err);
+      setError('Failed to load your campaigns. Please check your wallet connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (contractAddress: string) => {
+    if (!wallet) return;
+    
+    try {
+      setWithdrawing(true);
+      
+      const campaignContract = getCampaignContract(contractAddress, wallet);
+      const tx = await campaignContract.withdraw();
+      
+      console.log('Withdraw transaction:', tx);
+      
+      // Refresh campaigns after withdrawal
+      fetchMyCampaigns();
       
     } catch (error) {
-      console.error('Manual refresh failed:', error);
-      toast({
-        title: 'Refresh Failed',
-        description: 'Could not refresh updates',
-        variant: 'destructive',
-      });
+      console.error('Withdrawal failed:', error);
+      setError('Failed to withdraw funds: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
-      setIsRefreshingUpdates(false);
+      setWithdrawing(false);
     }
   };
 
-  if (loading) {
+
+
+  if (!wallet) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <PageContainer>
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-freeflow-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading campaign details...</p>
+          <div className="text-center max-w-md mx-auto">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">My Campaigns</h1>
+            <p className="text-gray-600 mb-8">
+              Please connect your wallet to view your campaigns
+            </p>
+            <div className="bg-white rounded-lg border border-gray-200 p-8">
+              <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Connect your wallet to get started</p>
+            </div>
           </div>
         </PageContainer>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <PageContainer>
-          <div className="text-center py-12">
-            <p className="text-red-500 mb-4">{error}</p>
-            <Link href="/campaigns">
-              <Button variant="outline">Back to Campaigns</Button>
-            </Link>
-          </div>
-        </PageContainer>
-      </div>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <PageContainer>
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">Campaign not found</p>
-            <Link href="/campaigns">
-              <Button variant="outline">Back to Campaigns</Button>
-            </Link>
-          </div>
-        </PageContainer>
-      </div>
-    );
-  }
-
-  const getStatusBadge = () => {
-    switch (campaign.status) {
-      case 'goal_met':
-        return <Badge className="bg-green-100 text-green-800">🎯 Goal Met</Badge>;
-      case 'ended':
-        return <Badge className="bg-gray-100 text-gray-800">Ended</Badge>;
-      default:
-        return <Badge className="bg-blue-100 text-blue-800">Active</Badge>;
-    }
-  };
-
-  const quickAmounts = ['0.1', '0.25', '0.5', '1'];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <PageContainer>
-        <div className="mb-6">
-          <Link href="/campaigns">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Campaigns
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">My Campaigns</h1>
+          <Link href="/create">
+            <Button className="bg-freeflow-900 hover:bg-freeflow-800 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Campaign
             </Button>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Campaign Header */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  {getStatusBadge()}
-                  <Button variant="outline" onClick={shareUrl}>
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share
-                  </Button>
-                </div>
-                
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                  {campaign.title}
-                </h1>
-                
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-6">
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {campaign.timeLeft}
-                  </div>
-                  <div className="flex items-center">
-                    <Target className="w-4 h-4 mr-1" />
-                    Goal: {campaign.goal} ETH
-                  </div>
-                </div>
-
-                {campaign.imageUrl && (
-                  <img
-                    src={campaign.imageUrl}
-                    alt={campaign.title}
-                    className="w-full h-64 object-cover rounded-lg mb-6"
-                  />
-                )}
-
-                <div className="prose max-w-none">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">About This Campaign</h3>
-                  <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">
-                    {campaign.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Campaign Updates */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Campaign Updates</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={refreshUpdates}
-                    disabled={isRefreshingUpdates}
-                  >
-                    {isRefreshingUpdates ? 'Refreshing...' : 'Refresh'}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-
-                  
-                  {updates.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No updates yet.</p>
-                  ) : (
-                    updates.map((update, index) => (
-                      <div key={index} className="border-l-4 border-freeflow-600 pl-4">
-                        <p className="text-sm text-gray-500 font-medium">
-                          {new Date(update.timestamp * 1000).toLocaleString()}
-                        </p>
-                        <p className="text-gray-700 mt-1">
-                          {update.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                  
-                  {/* Post Update Interface - Only show for campaign owners when active */}
-                  {wallet && campaign && wallet.address.toLowerCase() === campaign.creator.toLowerCase() && campaign.status === 'active' && (
-                    <div className="border-t pt-4 mt-4">
-                      <h5 className="font-medium text-gray-900 mb-3">Post Campaign Update</h5>
-                      <div className="space-y-3">
-                        <Textarea
-                          value={newUpdate}
-                          onChange={(e) => setNewUpdate(e.target.value)}
-                          placeholder="Write an update for your supporters..."
-                          className="min-h-[100px] resize-none"
-                        />
-                        <Button
-                          onClick={handlePostUpdate}
-                          disabled={isPostingUpdate || !newUpdate.trim()}
-                          className="w-full bg-freeflow-900 hover:bg-freeflow-800 text-white"
-                        >
-                          {isPostingUpdate ? 'Posting...' : 'Post Update'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Campaign Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Campaign Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Creator:</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono">{formatAddress(campaign.creator)}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(campaign.creator)}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  {campaign.contractAddress && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Contract:</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono">{formatAddress(campaign.contractAddress)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyToClipboard(campaign.contractAddress!)}
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Network:</span>
-                    <span>Base</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Created:</span>
-                    <span>{new Date(campaign.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-freeflow-600 mx-auto mb-4"></div>
+            <p className="text-gray-500 text-lg">Loading your campaigns...</p>
           </div>
+        )}
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Progress Card */}
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-lg border border-red-200 p-8 max-w-md mx-auto">
+              <h3 className="text-lg font-medium text-red-900 mb-2">Error loading campaigns</h3>
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={fetchMyCampaigns} variant="outline" size="sm">
+                Try again
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        {!loading && !error && campaigns.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Progress</span>
-                    <span className="text-gray-900 font-medium">{campaign.progress}%</span>
-                  </div>
-                  <Progress value={campaign.progress} className="h-3" />
-                  <div className="flex justify-between text-lg font-semibold">
-                    <span className="text-gray-900">{campaign.raised} ETH</span>
-                    <span className="text-gray-600">of {campaign.goal} ETH</span>
-                  </div>
-                  <div className="text-center text-sm text-gray-600">
-                    ~${(parseFloat(campaign.raised) * 1880).toLocaleString()} USD raised
-                  </div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Raised</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {campaigns.reduce((total, campaign) => total + parseFloat(campaign.raised), 0).toFixed(3)} ETH
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Across {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}
+                </p>
               </CardContent>
             </Card>
-
-            {/* Balance Display for Campaign Owners */}
-            {campaign.contractAddress && (
-              <BalanceDisplay
-                campaignAddress={campaign.contractAddress}
-                campaignOwner={campaign.creator}
-              />
-            )}
-
-            {/* Donation Interface */}
+            
             <Card>
-              <CardHeader>
-                <CardTitle>Make a Donation</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Token Selection */}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2">Select Token</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {campaign.acceptedTokens.map((token) => (
-                      <Button
-                        key={token}
-                        variant={selectedToken === token ? 'default' : 'outline'}
-                        className={selectedToken === token ? 'bg-freeflow-900 text-white' : ''}
-                        onClick={() => setSelectedToken(token)}
-                      >
-                        {token}
-                      </Button>
-                    ))}
-                  </div>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {campaigns.filter(c => c.isActive).length}
                 </div>
-
-                {/* Amount Input */}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2">Amount</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.1"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="focus:ring-freeflow-500 focus:border-freeflow-500"
-                  />
+                <p className="text-xs text-muted-foreground">
+                  {campaigns.filter(c => !c.isActive).length} completed
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Average Progress</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {campaigns.length > 0 ? Math.round(campaigns.reduce((total, campaign) => total + campaign.progress, 0) / campaigns.length) : 0}%
                 </div>
-
-                {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-2 gap-2">
-                  {quickAmounts.map((quickAmount) => (
-                    <Button
-                      key={quickAmount}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAmount(quickAmount)}
-                      className="text-gray-700 hover:bg-gray-200"
-                    >
-                      {quickAmount} {selectedToken}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Donate Button */}
-                <Button
-                  className="w-full bg-freeflow-900 hover:bg-freeflow-800 text-white"
-                  onClick={handleDonate}
-                  disabled={isDonating || !wallet}
-                >
-                  {isDonating ? (
-                    'Processing...'
-                  ) : (
-                    <>
-                      <Heart className="w-4 h-4 mr-2" />
-                      Donate Now
-                    </>
-                  )}
-                </Button>
-
-                {!wallet && (
-                  <p className="text-sm text-gray-500 text-center">
-                    Connect your wallet to donate
-                  </p>
-                )}
-
-                {/* Fee Notice */}
-                <p className="text-xs text-gray-500 text-center">
-                  Platform fee: 2% • Funds go directly to campaign smart contract
+                <p className="text-xs text-muted-foreground">
+                  Overall completion rate
                 </p>
               </CardContent>
             </Card>
           </div>
-        </div>
+        )}
+
+        {/* Campaigns List */}
+        {!loading && !error && campaigns.length === 0 && (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-lg border border-gray-200 p-8 max-w-md mx-auto">
+              <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns yet</h3>
+              <p className="text-gray-600 mb-6">
+                Create your first campaign to start raising funds for your cause
+              </p>
+              <Link href="/create">
+                <Button className="bg-freeflow-900 hover:bg-freeflow-800 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Campaign
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && campaigns.length > 0 && (
+          <div className="grid gap-6">
+            {campaigns.map((campaign) => (
+              <Card key={campaign.id} className="overflow-hidden">
+                <div className="flex">
+                  {campaign.imageUrl && (
+                    <div className="w-48 h-32 flex-shrink-0">
+                      <img 
+                        src={campaign.imageUrl} 
+                        alt={campaign.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                            {campaign.title}
+                          </h3>
+                          <Badge variant={campaign.status === 'active' ? 'default' : campaign.status === 'ended' ? 'secondary' : 'outline'}>
+                            {campaign.status === 'active' ? 'Active' : campaign.status === 'ended' ? 'Ended' : 'Goal Met'}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                          {campaign.description}
+                        </p>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Progress</span>
+                            <span className="font-medium">{campaign.progress}%</span>
+                          </div>
+                          <Progress value={campaign.progress} className="h-2" />
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">
+                              {campaign.raised} ETH raised of {campaign.goal} ETH
+                            </span>
+                            <span className="text-gray-500">{campaign.timeLeft}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-2 ml-4">
+                        <button 
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+                          onClick={(e) => {
+                            console.log('=== SIMPLE BUTTON CLICK EVENT ===');
+                            console.log('Event object:', e);
+                            console.log('Campaign object:', campaign);
+                            console.log('Contract address:', campaign.contractAddress);
+                            console.log('setLocation function:', setLocation);
+                            
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            try {
+                              if (campaign.contractAddress) {
+                                console.log('Calling setLocation with:', `/campaign/${campaign.contractAddress}`);
+                                // Try using window.location.href instead of setLocation
+                                window.location.href = `/campaign/${campaign.contractAddress}`;
+                                console.log('Navigation called successfully');
+                              } else {
+                                console.error('No contract address found');
+                              }
+                            } catch (error) {
+                              console.error('Error in click handler:', error);
+                            }
+                          }}
+                          onMouseDown={() => console.log('Mouse down on button')}
+                          onMouseUp={() => console.log('Mouse up on button')}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          View Details
+                        </button>
+                        {campaign.status === 'ended' && (campaign as any).hasWithdrawableFunds && (
+                          <Button 
+                            onClick={() => handleWithdraw(campaign.contractAddress)}
+                            disabled={withdrawing}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            {withdrawing ? 'Withdrawing...' : 'Withdraw'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </PageContainer>
     </div>
   );
