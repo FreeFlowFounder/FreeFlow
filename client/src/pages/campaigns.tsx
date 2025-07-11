@@ -11,6 +11,7 @@ import { ethers } from 'ethers';
 import { Link } from 'wouter';
 import { getAddress } from '../lib/contract-config';
 import { ProgressTracker } from '../lib/progress-tracker';
+import { useWallet } from '../hooks/use-wallet';
 
 // Helper function to format time left
 function formatTimeLeft(milliseconds: number): string {
@@ -27,6 +28,7 @@ function formatTimeLeft(milliseconds: number): string {
 }
 
 export default function Campaigns() {
+  const { wallet } = useWallet();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [allCampaignAddresses, setAllCampaignAddresses] = useState<string[]>([]);
   const [sortedAddresses, setSortedAddresses] = useState<string[]>([]);
@@ -39,6 +41,7 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{[key: string]: any}>({});
 
 
   useEffect(() => {
@@ -565,11 +568,21 @@ export default function Campaigns() {
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
-        console.log(`Mobile wallet debugging for ${address}:`);
-        console.log(`- Connected wallet: ${window.ethereum ? 'Yes' : 'No'}`);
-        console.log(`- Campaign owner: ${owner}`);
-        console.log(`- Blockchain raised: ${blockchainRaised} ETH`);
-        console.log(`- Goal: ${goalInEth} ETH`);
+        // Only show debug for wallet browsers to avoid breaking non-wallet browsers
+        if (window.ethereum && wallet) {
+          const debugData = {
+            address,
+            connectedWallet: wallet ? 'Yes' : 'No',
+            campaignOwner: owner,
+            blockchainRaised: `${blockchainRaised} ETH`,
+            goal: `${goalInEth} ETH`,
+            isActive,
+            provider: provider?.constructor?.name || 'None',
+            walletAddress: wallet?.address || 'Not connected'
+          };
+          
+          setDebugInfo(prev => ({ ...prev, [address]: debugData }));
+        }
         
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
         
@@ -831,7 +844,33 @@ export default function Campaigns() {
         </div>
       </div>
 
-
+      {/* Debug Info Panel for Mobile Wallet Browsers Only */}
+      {Object.keys(debugInfo).length > 0 && window.ethereum && (
+        <div className="fixed top-16 right-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold">Debug Info</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDebugInfo({})}
+              className="text-white h-auto p-1"
+            >
+              ×
+            </Button>
+          </div>
+          {Object.entries(debugInfo).map(([campaignAddr, data]) => (
+            <div key={campaignAddr} className="mb-3 border-b border-gray-600 pb-2">
+              <div className="font-semibold mb-1">Campaign: {campaignAddr.slice(0, 8)}...</div>
+              {Object.entries(data).map(([key, value]) => (
+                <div key={key} className="flex justify-between">
+                  <span className="opacity-75">{key}:</span>
+                  <span className="ml-2 break-all">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Campaign Detail Modal */}
       <CampaignDetailModal
