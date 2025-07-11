@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, Plus } from 'lucide-react';
+import { Search, RefreshCw, Plus, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,7 +11,6 @@ import { ethers } from 'ethers';
 import { Link } from 'wouter';
 import { getAddress } from '../lib/contract-config';
 import { ProgressTracker } from '../lib/progress-tracker';
-import { useWallet } from '../hooks/use-wallet';
 
 // Helper function to format time left
 function formatTimeLeft(milliseconds: number): string {
@@ -28,7 +27,6 @@ function formatTimeLeft(milliseconds: number): string {
 }
 
 export default function Campaigns() {
-  const { wallet } = useWallet();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [allCampaignAddresses, setAllCampaignAddresses] = useState<string[]>([]);
   const [sortedAddresses, setSortedAddresses] = useState<string[]>([]);
@@ -41,9 +39,31 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{[key: string]: any}>({});
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
 
-
+  // Mobile debug console - capture logs for mobile viewing
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      setShowDebug(true);
+      
+      const originalLog = console.log;
+      const originalError = console.error;
+      
+      console.log = (...args) => {
+        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()}: ${logMessage}`]);
+        originalLog.apply(console, args);
+      };
+      
+      console.error = (...args) => {
+        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()} ERROR: ${logMessage}`]);
+        originalError.apply(console, args);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     fetchCampaigns();
@@ -55,8 +75,6 @@ export default function Campaigns() {
     
     return () => clearInterval(interval);
   }, []);
-
-
 
   // Don't refetch campaigns when sort method changes - just re-sort existing campaigns
   useEffect(() => {
@@ -100,124 +118,12 @@ export default function Campaigns() {
         VITE_OWNER_ADDRESS: import.meta.env.VITE_OWNER_ADDRESS
       });
       
-      // Debug info for mobile browsers
-      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const hasEthereum = !!window.ethereum;
-      const debugData = {
-        isMobile,
-        hasEthereum,
-        userAgent: navigator.userAgent,
-        network: import.meta.env.VITE_NETWORK,
-        step: 'Starting fetch'
-      };
-      setDebugInfo(prev => ({ ...prev, initial: debugData }));
-      
       // Create provider that works without wallet connection
       let provider;
       if (window.ethereum) {
-        try {
-          const walletProvider = new ethers.BrowserProvider(window.ethereum);
-          const network = await walletProvider.getNetwork();
-          
-          // Base mainnet should be chainId 8453
-          if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
-            // For mobile browsers, force reconnection to Base network
-            try {
-              await window.ethereum.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x2105' }] // Base mainnet chainId in hex
-              });
-              const baseNetwork = await walletProvider.getNetwork();
-              
-              if (baseNetwork.chainId === BigInt(8453)) {
-                provider = walletProvider;
-              } else {
-                throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
-              }
-            } catch (networkError) {
-              console.log('Network switch failed, falling back to public RPC');
-              // Fall back to public RPC instead of failing completely
-              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-              const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-                ? isMobile 
-                  ? ['https://base.publicnode.com', 'https://base-mainnet.g.alchemy.com/v2/demo']
-                  : ['https://mainnet.base.org', 'https://base-mainnet.g.alchemy.com/v2/demo']
-                : ['https://sepolia.base.org'];
-              
-              for (const rpcUrl of rpcUrls) {
-                try {
-                  const fallbackProvider = new ethers.JsonRpcProvider(rpcUrl, {
-                    chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
-                    name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
-                  }, { staticNetwork: true });
-                  
-                  await fallbackProvider.getNetwork();
-                  provider = fallbackProvider;
-                  break;
-                } catch (e) {
-                  console.log('Fallback RPC failed:', rpcUrl);
-                }
-              }
-              
-              if (!provider) {
-                setDebugInfo(prev => ({ ...prev, networkError: { 
-                  step: 'Network switch failed completely', 
-                  originalChainId: network.chainId.toString(),
-                  expectedChainId: '8453',
-                  networkError: 'Could not switch or fallback to Base network'
-                } }));
-                throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
-              }
-            }
-          } else {
-            provider = walletProvider;
-          }
-          
-          // Debug wallet connection success
-          const finalNetwork = await provider.getNetwork();
-          setDebugInfo(prev => ({ ...prev, walletSuccess: { 
-            step: 'Wallet connection successful', 
-            chainId: finalNetwork.chainId.toString(),
-            networkName: finalNetwork.name,
-            expectedChainId: import.meta.env.VITE_NETWORK === 'mainnet' ? '8453' : '84532'
-          } }));
-        } catch (walletError) {
-          console.log('Wallet connection failed, using public RPC');
-          // If wallet connection fails, fall back to public RPC
-          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-          const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-            ? isMobile 
-              ? ['https://base.publicnode.com', 'https://base-mainnet.g.alchemy.com/v2/demo']
-              : ['https://mainnet.base.org', 'https://base-mainnet.g.alchemy.com/v2/demo']
-            : ['https://sepolia.base.org'];
-          
-          for (const rpcUrl of rpcUrls) {
-            try {
-              const fallbackProvider = new ethers.JsonRpcProvider(rpcUrl, {
-                chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
-                name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
-              }, { staticNetwork: true });
-              
-              await fallbackProvider.getNetwork();
-              provider = fallbackProvider;
-              break;
-            } catch (e) {
-              console.log('Fallback RPC failed:', rpcUrl);
-            }
-          }
-          
-          if (!provider) {
-            setDebugInfo(prev => ({ ...prev, walletError: { 
-              step: 'Wallet connection failed completely', 
-              error: walletError instanceof Error ? walletError.message : 'Unknown wallet error',
-              fallbackAttempted: true
-            } }));
-            throw walletError;
-          }
-        }
+        console.log('Using wallet provider');
+        provider = new ethers.BrowserProvider(window.ethereum);
       } else {
-        setDebugInfo(prev => ({ ...prev, noWallet: { step: 'No wallet detected, using public RPC' } }));
-        console.log('No wallet detected, using public RPC providers');
         // Multiple RPC endpoints for better reliability
         // Mobile browsers prefer different RPC endpoints due to CORS policies
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -272,48 +178,78 @@ export default function Campaigns() {
         }
         
         if (!workingProvider) {
-          setDebugInfo(prev => ({ ...prev, rpcFailure: { step: 'All RPC endpoints failed', tried: rpcUrls } }));
           throw new Error('All RPC endpoints failed. Please check your internet connection.');
         }
         
         provider = workingProvider;
-        
-        // Check network and chain ID
-        try {
-          const network = await workingProvider.getNetwork();
-          setDebugInfo(prev => ({ ...prev, rpcSuccess: { 
-            step: 'RPC connection successful', 
-            provider: workingProvider.constructor.name,
-            chainId: network.chainId.toString(),
-            networkName: network.name,
-            expectedChainId: import.meta.env.VITE_NETWORK === 'mainnet' ? '8453' : '84532'
-          } }));
-        } catch (e) {
-          setDebugInfo(prev => ({ ...prev, rpcSuccess: { 
-            step: 'RPC connection successful but network check failed', 
-            provider: workingProvider.constructor.name,
-            error: e instanceof Error ? e.message : 'Unknown error'
-          } }));
-        }
       }
       
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
+      console.log('Factory address:', factoryAddress);
+      console.log('Environment:', import.meta.env.VITE_NETWORK);
+      console.log('User agent:', navigator.userAgent);
+      console.log('Is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+      
+      // Check network - this is critical for mobile debugging
+      try {
+        const network = await provider.getNetwork();
+        console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
+        
+        // Base mainnet should be chainId 8453
+        if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
+          console.error('NETWORK MISMATCH: Expected Base mainnet (8453), got:', network.chainId);
+          
+          // For mobile browsers, force reconnection to Base network
+          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile) {
+            console.log('Mobile browser detected, forcing Base network connection...');
+            const baseProvider = new ethers.JsonRpcProvider('https://base.publicnode.com', {
+              chainId: 8453,
+              name: 'base'
+            }, {
+              staticNetwork: true
+            });
+            
+            // Test the forced Base connection
+            const baseNetwork = await baseProvider.getNetwork();
+            console.log('Forced Base network:', baseNetwork.name, 'Chain ID:', baseNetwork.chainId);
+            
+            if (baseNetwork.chainId === BigInt(8453)) {
+              console.log('Successfully forced Base network connection');
+              provider = baseProvider;
+            } else {
+              throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
+            }
+          } else {
+            throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
+          }
+        }
+      } catch (e) {
+        console.error('Could not get network info:', e);
+        throw e;
+      }
       
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
-      // Verify factory contract exists
+      // Check if the contract exists at this address
+      console.log('Checking contract code at factory address...');
       try {
         const factoryCode = await provider.getCode(factoryAddress);
+        console.log('Factory contract code length:', factoryCode.length);
+        console.log('Factory contract code preview:', factoryCode.substring(0, 100) + '...');
         
         if (factoryCode === '0x') {
           // Try alternative RPC for mobile if main one fails
           const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
           if (isMobile) {
+            console.log('Mobile browser: trying alternative RPC for contract verification...');
             const altProvider = new ethers.JsonRpcProvider('https://base-mainnet.g.alchemy.com/v2/demo');
             const altFactoryCode = await altProvider.getCode(factoryAddress);
+            console.log('Alternative RPC contract code length:', altFactoryCode.length);
             
             if (altFactoryCode !== '0x') {
+              console.log('Contract found on alternative RPC, switching provider...');
               provider = altProvider;
             } else {
               throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
@@ -329,7 +265,6 @@ export default function Campaigns() {
       
       console.log('Calling getAllCampaigns...');
       const campaignAddresses = await factory.getAllCampaigns();
-      setDebugInfo(prev => ({ ...prev, campaigns: { step: 'Got campaigns', count: campaignAddresses.length, addresses: campaignAddresses.slice(0, 3) } }));
       console.log('Campaign addresses returned:', campaignAddresses.length);
       console.log('Campaign addresses:', campaignAddresses);
       
@@ -391,13 +326,23 @@ export default function Campaigns() {
     let backupProvider;
     
     if (window.ethereum) {
-      // Simple wallet provider approach (same as original desktop behavior)
-      console.log('Using wallet provider for campaign loading');
+      // Force Base network before using wallet provider
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }], // Base mainnet
+        });
+        console.log('Ensured wallet is on Base network');
+      } catch (error) {
+        console.warn('Could not switch wallet to Base network:', error);
+      }
+      
       provider = new ethers.BrowserProvider(window.ethereum);
+      console.log('Using wallet RPC provider for campaign loading');
     } else {
-      // For mobile browsers without wallet, try multiple RPC endpoints - prioritize most reliable
+      // For mobile browsers without wallet, try multiple RPC endpoints
       const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-        ? ['https://mainnet.base.org', 'https://base.publicnode.com', 'https://base-rpc.publicnode.com']
+        ? ['https://base.publicnode.com', 'https://mainnet.base.org', 'https://base-rpc.publicnode.com']
         : ['https://sepolia.base.org', 'https://base-sepolia.publicnode.com'];
       
       // Try primary RPC
@@ -433,7 +378,6 @@ export default function Campaigns() {
       "function deadline() view returns (uint256)",
       "function owner() view returns (address)",
       "function goal() view returns (uint256)",
-      "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
       "function getWithdrawableAmount() view returns (uint256,uint256)",
       "function getFeeBalances() view returns (uint256,uint256)"
     ];
@@ -446,14 +390,8 @@ export default function Campaigns() {
       console.log(`Loading campaign ${i + 1}/${endIndex}: ${address.slice(0,8)}...`);
       
       try {
-        // First check if the contract is actually deployed (with timeout)
-        const contractCode = await Promise.race([
-          provider.getCode(address),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Contract check timeout')), 5000)
-          )
-        ]);
-        
+        // First check if the contract is actually deployed
+        const contractCode = await provider.getCode(address);
         if (contractCode === '0x') {
           console.log(`No contract found at address ${address}, skipping`);
           continue;
@@ -464,14 +402,9 @@ export default function Campaigns() {
         // First check if this is a valid campaign contract
         let owner;
         try {
-          // Try to get owner with timeout
+          // Try multiple ways to get owner - RPC sync issues are common on mobile
           try {
-            owner = await Promise.race([
-              campaignContract.owner(),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Owner call timeout')), 5000)
-              )
-            ]);
+            owner = await campaignContract.owner();
           } catch (firstError) {
             console.log(`First owner() call failed, trying backup RPC...`);
             
@@ -542,44 +475,40 @@ export default function Campaigns() {
         // Get campaign progress using frontend tracker
         const goalInEth = ethers.formatEther(goal);
         
-        // Get current blockchain data using same method as Campaign Balances
+        // Get current blockchain data for sync
         let blockchainRaised = '0';
-        
-        try {
-          // Use getTotalBalance() method (same as Campaign Balances section)
-          const totalBalance = await campaignContract.getTotalBalance();
-          blockchainRaised = ethers.formatEther(totalBalance.eth);
-          console.log(`Got total balance: ${blockchainRaised} ETH`);
+        if (isActive) {
+          // For active campaigns, use current withdrawable amount
+          const withdrawableResult = await campaignContract.getWithdrawableAmount();
+          const [ethAvailable] = withdrawableResult;
+          blockchainRaised = ethers.formatEther(ethAvailable);
+        } else {
+          // For ended campaigns, try to get total raised (withdrawable + fees)
+          try {
+            const [withdrawableResult, feeResult] = await Promise.all([
+              campaignContract.getWithdrawableAmount(),
+              campaignContract.getFeeBalances()
+            ]);
+            const [ethWithdrawable] = withdrawableResult;
+            const [ethFees] = feeResult;
             
-        } catch (error) {
-          console.warn(`Failed to get total balance for ${address}:`, error);
-          blockchainRaised = '0';
+            const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
+            blockchainRaised = ethers.formatEther(totalRaised);
+          } catch (error) {
+            console.warn('Could not get blockchain data for ended campaign:', error);
+            const contractBalance = await provider.getBalance(address);
+            blockchainRaised = ethers.formatEther(contractBalance);
+          }
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
-        
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
-        
-        // Debug campaign processing
-        if (campaigns.length === 0) {
-          setDebugInfo(prev => ({ ...prev, firstCampaign: {
-            step: 'Processing first campaign',
-            address: address.slice(0, 10) + '...',
-            title: title || 'No title',
-            goalInEth,
-            isActive,
-            blockchainRaised,
-            progress: ProgressTracker.getProgressPercentage(address),
-            endDate: new Date(deadline * 1000).toISOString().split('T')[0]
-          } }));
-        }
         
         // Sync with current blockchain state
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)
-        // Use blockchain data directly for consistency instead of progress tracker conversion
-        const raisedInEth = blockchainRaised;
+        const raisedInEth = await ProgressTracker.getTotalRaisedETH(address);
         const progress = ProgressTracker.getProgressPercentage(address);
         const goalMet = progress >= 100;
         const endDate = new Date(deadlineNum * 1000);
@@ -624,23 +553,6 @@ export default function Campaigns() {
 
     if (startIndex === 0) {
       setCampaigns(newCampaigns);
-      
-      // Force re-render for mobile browsers
-      setTimeout(() => {
-        setCampaigns([...newCampaigns]);
-      }, 100);
-      
-      // Debug final campaign list for mobile
-      setDebugInfo(prev => ({ ...prev, finalCampaigns: {
-        step: 'Final campaign processing',
-        totalProcessed: newCampaigns.length,
-        firstCampaignActive: newCampaigns.length > 0 ? newCampaigns[0].isActive : 'no campaigns',
-        firstCampaignDeadline: newCampaigns.length > 0 ? new Date(newCampaigns[0].endDate).toISOString().split('T')[0] : 'none',
-        currentTime: new Date().toISOString().split('T')[0],
-        campaignTitle: newCampaigns.length > 0 ? newCampaigns[0].title : 'none',
-        filter: filter,
-        sortBy: sortBy
-      } }));
     } else {
       setCampaigns(prev => [...prev, ...newCampaigns]);
     }
@@ -680,25 +592,9 @@ export default function Campaigns() {
                            campaign.creator.toLowerCase().includes(searchTerm.toLowerCase());
       
       const campaignDeadline = new Date(campaign.endDate).getTime();
-      const isActiveNow = campaignDeadline > now;
-      
-      // Debug filtering for mobile
-      if (campaigns.length > 0 && campaign === campaigns[0]) {
-        setDebugInfo(prev => ({ ...prev, filtering: {
-          step: 'Filtering first campaign',
-          campaignDeadline: new Date(campaignDeadline).toISOString(),
-          currentTime: new Date(now).toISOString(),
-          isActiveNow,
-          campaignIsActive: campaign.isActive,
-          filter: filter,
-          matchesSearch,
-          willShow: filter === 'active' ? (matchesSearch && isActiveNow) : matchesSearch
-        } }));
-      }
-      
       switch (filter) {
         case 'active':
-          return matchesSearch && isActiveNow;
+          return matchesSearch && campaignDeadline > now;
         case 'ended':
           return matchesSearch && campaignDeadline <= now;
         default:
@@ -825,19 +721,6 @@ export default function Campaigns() {
               <p className="text-sm text-muted-foreground mt-2">
                 Try adjusting your search or filter options.
               </p>
-              {/* Debug info for mobile */}
-              {campaigns.length > 0 && (
-                <div className="mt-4 text-xs text-left bg-gray-100 p-2 rounded max-w-md mx-auto">
-                  <div><strong>Debug Info:</strong></div>
-                  <div>Total campaigns: {campaigns.length}</div>
-                  <div>Filter: {filter}</div>
-                  <div>Search: "{searchTerm}"</div>
-                  <div>First campaign title: {campaigns[0]?.title || 'None'}</div>
-                  <div>First campaign active: {campaigns[0]?.isActive?.toString() || 'None'}</div>
-                  <div>First campaign deadline: {campaigns[0]?.endDate?.split('T')[0] || 'None'}</div>
-                  <div>Current time: {new Date().toISOString().split('T')[0]}</div>
-                </div>
-              )}
             </div>
           ) : (
             <>
@@ -879,34 +762,27 @@ export default function Campaigns() {
         </div>
       </div>
 
-
-
-      {/* Debug Info Panel for Mobile Browsers */}
-      {Object.keys(debugInfo).length > 0 && (
-        <div className="fixed bottom-4 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold">Mobile Debug Info</span>
-            <button
-              onClick={() => setDebugInfo({})}
-              className="text-white hover:text-gray-300"
+      {/* Mobile Debug Panel */}
+      {showDebug && (
+        <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-xs p-2 max-h-40 overflow-y-auto z-50 border-t">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-bold">Mobile Debug Console</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDebug(false)}
+              className="text-white h-auto p-1"
             >
               ×
-            </button>
+            </Button>
           </div>
-          {Object.entries(debugInfo).map(([key, data]) => (
-            <div key={key} className="mb-2 border-b border-gray-600 pb-1">
-              <div className="font-semibold">{key}</div>
-              {typeof data === 'object' && data !== null ? (
-                Object.entries(data).map(([subKey, value]) => (
-                  <div key={subKey} className="ml-2 text-xs">
-                    <span className="opacity-75">{subKey}:</span> {String(value)}
-                  </div>
-                ))
-              ) : (
-                <div className="ml-2 text-xs">{String(data)}</div>
-              )}
-            </div>
-          ))}
+          <div className="space-y-1">
+            {debugLogs.map((log, index) => (
+              <div key={index} className="font-mono text-xs break-words">
+                {log}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
