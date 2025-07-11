@@ -52,12 +52,16 @@ export default function CampaignDetail() {
           "function owner() view returns (address)",
           "function campaignOwner() view returns (address)",
           "function goal() view returns (uint256)",
-          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
+          "function getTotalBalance() view returns (uint256,uint256)",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
           "function postUpdate(string memory newUpdate)",
           "function hasEnded() view returns (bool)",
           "function donateETH() payable"
+        ];
+        
+        const erc20Abi = [
+          "function balanceOf(address) view returns (uint256)"
         ];
         
         const campaignContract = new ethers.Contract(contractAddress, campaignAbi, provider);
@@ -99,8 +103,25 @@ export default function CampaignDetail() {
         // Use getTotalBalance() method for consistency with other pages
         try {
           const totalBalance = await campaignContract.getTotalBalance();
-          ethAvailable = totalBalance.eth;
-          console.log('Campaign detail: getTotalBalance() returned:', ethers.formatEther(totalBalance.eth));
+          ethAvailable = totalBalance[0]; // ethBalance is first return value
+          
+          // Get USDC balance separately
+          const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
+          let usdcAmount = '0';
+          try {
+            const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
+            const usdcBalance = await usdcContract.balanceOf(contractAddress);
+            usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
+          } catch (error) {
+            console.log('Failed to fetch USDC balance:', error);
+          }
+          
+          // Only log FLW balance if enabled
+          const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
+          const ethBalance = ethers.formatEther(totalBalance[0]);
+          const flwBalance = flwEnabled ? ethers.formatEther(totalBalance[1]) : '0';
+          
+          console.log(`Campaign detail: getTotalBalance() returned: ${ethBalance} ETH, ${usdcAmount} USDC${flwEnabled ? `, ${flwBalance} FLW` : ''}`);
         } catch (error) {
           console.warn('getTotalBalance() failed, using direct contract balance:', error);
           // Fallback to direct contract balance

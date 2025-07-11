@@ -56,12 +56,16 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         [
           "function deadline() view returns (uint256)",
           "function goal() view returns (uint256)",
-          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
+          "function getTotalBalance() view returns (uint256,uint256)",
           "function getWithdrawableAmount() view returns (uint256,uint256)",
           "function getFeeBalances() view returns (uint256,uint256)"
         ],
         provider
       );
+      
+      const erc20Abi = [
+        "function balanceOf(address) view returns (uint256)"
+      ];
       
       const deadline = await campaignContract.deadline();
       const goal = await campaignContract.goal();
@@ -73,8 +77,44 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
       let blockchainRaised = '0';
       try {
         const totalBalance = await campaignContract.getTotalBalance();
-        blockchainRaised = ethers.formatEther(totalBalance.eth);
-        console.log(`Modal: Campaign ${campaign.contractAddress} blockchain balance: ${blockchainRaised} ETH`);
+        const ethBalance = ethers.formatEther(totalBalance[0]); // ethBalance is first return value
+        
+        // Only include FLW balance if enabled
+        const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
+        let totalUSDValue = 0;
+        
+        // Convert ETH to USD
+        if (parseFloat(ethBalance) > 0) {
+          const ethUSDValue = await ProgressTracker.convertEthToUSD(ethBalance);
+          totalUSDValue += parseFloat(ethUSDValue);
+        }
+        
+        // Add USDC value by querying USDC contract directly
+        const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
+        try {
+          const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
+          const usdcBalance = await usdcContract.balanceOf(campaign.contractAddress);
+          const usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
+          
+          if (parseFloat(usdcAmount) > 0) {
+            const usdcUSDValue = await ProgressTracker.convertToUSD(usdcAmount, 'USDC');
+            totalUSDValue += parseFloat(usdcUSDValue);
+          }
+        } catch (error) {
+          console.log(`Failed to fetch USDC balance for ${campaign.contractAddress}:`, error);
+        }
+        
+        // Add FLW value if enabled
+        if (flwEnabled) {
+          const flwBalance = ethers.formatEther(totalBalance[1]); // flwBalance is second return value
+          if (parseFloat(flwBalance) > 0) {
+            const flwUSDValue = await ProgressTracker.convertToUSD(flwBalance, 'FLW');
+            totalUSDValue += parseFloat(flwUSDValue);
+          }
+        }
+        
+        blockchainRaised = ethBalance; // Use ETH as base for progress tracking
+        console.log(`Modal: Campaign ${campaign.contractAddress} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
       } catch (error) {
         console.warn('Could not get total balance, trying fallback method:', error);
         // Fallback to original method if getTotalBalance fails

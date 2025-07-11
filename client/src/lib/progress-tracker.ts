@@ -67,15 +67,19 @@ export class ProgressTracker {
     if (isActive && provider) {
       try {
         const campaignAbi = [
-          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
+          "function getTotalBalance() view returns (uint256,uint256)",
           "function goal() view returns (uint256)"
+        ];
+        
+        const erc20Abi = [
+          "function balanceOf(address) view returns (uint256)"
         ];
         
         const campaignContract = new ethers.Contract(campaignAddress, campaignAbi, provider);
         
         // Get the total balance (same as Campaign Balances section)
         const totalBalance = await campaignContract.getTotalBalance();
-        const totalRaisedEth = ethers.formatEther(totalBalance.eth);
+        const totalRaisedEth = ethers.formatEther(totalBalance[0]); // ethBalance is first return value
         
         // Get all token balances for complete tracking
         const syntheticDonations: DonationRecord[] = [];
@@ -94,44 +98,43 @@ export class ProgressTracker {
           totalUSDValue += parseFloat(ethUSDValue);
         }
         
-        // Add token donations (USDC, FLW) if any
-        if (totalBalance.tokens && totalBalance.tokens.length > 0) {
-          const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
-          const flwAddress = '0x84Ae3089F87CC1baa19586bB4C4059c7d24c648E'; // FLW token
+        // Add USDC token donations by querying USDC contract directly
+        const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
+        try {
+          const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
+          const usdcBalance = await usdcContract.balanceOf(campaignAddress);
+          const usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
           
-          for (let i = 0; i < totalBalance.tokens.length; i++) {
-            const tokenAddress = totalBalance.tokens[i];
-            const tokenAmount = totalBalance.amounts[i];
-            
-            if (tokenAddress.toLowerCase() === usdcAddress.toLowerCase()) {
-              // USDC (6 decimals)
-              const usdcAmount = ethers.formatUnits(tokenAmount, 6);
-              if (parseFloat(usdcAmount) > 0) {
-                const usdcUSDValue = await this.convertToUSD(usdcAmount, 'USDC');
-                syntheticDonations.push({
-                  amount: usdcAmount,
-                  token: 'USDC',
-                  usdValue: usdcUSDValue,
-                  timestamp: Date.now(),
-                  txHash: 'BLOCKCHAIN_RECOVERY_USDC'
-                });
-                totalUSDValue += parseFloat(usdcUSDValue);
-              }
-            } else if (tokenAddress.toLowerCase() === flwAddress.toLowerCase()) {
-              // FLW (18 decimals)
-              const flwAmount = ethers.formatUnits(tokenAmount, 18);
-              if (parseFloat(flwAmount) > 0) {
-                const flwUSDValue = await this.convertToUSD(flwAmount, 'FLW');
-                syntheticDonations.push({
-                  amount: flwAmount,
-                  token: 'FLW',
-                  usdValue: flwUSDValue,
-                  timestamp: Date.now(),
-                  txHash: 'BLOCKCHAIN_RECOVERY_FLW'
-                });
-                totalUSDValue += parseFloat(flwUSDValue);
-              }
-            }
+          if (parseFloat(usdcAmount) > 0) {
+            const usdcUSDValue = await this.convertToUSD(usdcAmount, 'USDC');
+            syntheticDonations.push({
+              amount: usdcAmount,
+              token: 'USDC',
+              usdValue: usdcUSDValue,
+              timestamp: Date.now(),
+              txHash: 'BLOCKCHAIN_RECOVERY_USDC'
+            });
+            totalUSDValue += parseFloat(usdcUSDValue);
+          }
+        } catch (error) {
+          console.log('Failed to fetch USDC balance:', error);
+        }
+        
+        // Add FLW token donations if any (second return value from getTotalBalance)
+        // Only include FLW if it's enabled via environment variable
+        const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
+        if (flwEnabled) {
+          const flwBalance = ethers.formatEther(totalBalance[1]); // flwBalance is second return value
+          if (parseFloat(flwBalance) > 0) {
+            const flwUSDValue = await this.convertToUSD(flwBalance, 'FLW');
+            syntheticDonations.push({
+              amount: flwBalance,
+              token: 'FLW',
+              usdValue: flwUSDValue,
+              timestamp: Date.now(),
+              txHash: 'BLOCKCHAIN_RECOVERY_FLW'
+            });
+            totalUSDValue += parseFloat(flwUSDValue);
           }
         }
         
