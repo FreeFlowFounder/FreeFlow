@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Campaign } from '@/types/campaign';
 import { ethers } from 'ethers';
 import { ProgressTracker } from '@/lib/progress-tracker';
+import { useCryptoPrices, calculateUSDValue, formatUSDValue } from '@/hooks/use-crypto-prices';
 
 export default function CampaignDetail() {
   const [, params] = useRoute('/campaign/:id');
@@ -31,6 +32,7 @@ export default function CampaignDetail() {
   const [newUpdate, setNewUpdate] = useState('');
   const [isPostingUpdate, setIsPostingUpdate] = useState(false);
   const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
+  const { eth, usdc } = useCryptoPrices();
 
   useEffect(() => {
     const fetchCampaignData = async () => {
@@ -143,7 +145,8 @@ export default function CampaignDetail() {
         const blockchainRaised = ethers.formatEther(ethAvailable);
         console.log('Using direct balance for campaign:', blockchainRaised);
         
-        // Sync with progress tracker
+        // Clear cache and sync with progress tracker to ensure fresh prices
+        ProgressTracker.clearCampaignData(contractAddress);
         await ProgressTracker.syncWithBlockchain(contractAddress, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)
@@ -684,7 +687,7 @@ export default function CampaignDetail() {
                     <span className="text-gray-600">of {campaign.goal} ETH</span>
                   </div>
                   <div className="text-center text-sm text-gray-600">
-                    ~${(parseFloat(campaign.raised) * 1880).toLocaleString()} USD raised
+                    {formatUSDValue(calculateUSDValue(campaign.raised, 'ETH', { eth, usdc }))} raised
                   </div>
                 </div>
               </CardContent>
