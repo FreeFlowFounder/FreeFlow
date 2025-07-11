@@ -323,16 +323,21 @@ export default function Campaigns() {
   };
 
   const loadCampaignBatch = async (addresses: string[], startIndex: number, count: number) => {
-    // Use same provider logic as fetchCampaigns
+    // Priority: Use wallet RPC if available (most reliable for mobile)
     let provider;
+    let backupProvider;
+    
     if (window.ethereum) {
       provider = new ethers.BrowserProvider(window.ethereum);
+      console.log('Using wallet RPC provider for campaign loading');
     } else {
-      // Use the fastest RPC for mobile
-      const rpcUrl = import.meta.env.VITE_NETWORK === 'mainnet' 
-        ? 'https://base.publicnode.com'
-        : 'https://sepolia.base.org';
-      provider = new ethers.JsonRpcProvider(rpcUrl, {
+      // For mobile browsers without wallet, try multiple RPC endpoints
+      const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
+        ? ['https://base.publicnode.com', 'https://mainnet.base.org', 'https://base-rpc.publicnode.com']
+        : ['https://sepolia.base.org', 'https://base-sepolia.publicnode.com'];
+      
+      // Try primary RPC
+      provider = new ethers.JsonRpcProvider(rpcUrls[0], {
         chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
         name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
       }, {
@@ -341,6 +346,21 @@ export default function Campaigns() {
         batchMaxSize: 1024,
         polling: false
       });
+      
+      // Setup backup RPC
+      if (rpcUrls.length > 1) {
+        backupProvider = new ethers.JsonRpcProvider(rpcUrls[1], {
+          chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+          name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+        }, {
+          staticNetwork: true,
+          batchMaxCount: 1,
+          batchMaxSize: 1024,
+          polling: false
+        });
+      }
+      
+      console.log(`Using public RPC provider: ${rpcUrls[0]}`);
     }
     
     const campaignAbi = [
@@ -361,14 +381,48 @@ export default function Campaigns() {
       console.log(`Loading campaign ${i + 1}/${endIndex}: ${address.slice(0,8)}...`);
       
       try {
+        // First check if the contract is actually deployed
+        const contractCode = await provider.getCode(address);
+        if (contractCode === '0x') {
+          console.log(`No contract found at address ${address}, skipping`);
+          continue;
+        }
+        
         const campaignContract = new ethers.Contract(address, campaignAbi, provider);
         
         // First check if this is a valid campaign contract
         let owner;
         try {
-          owner = await campaignContract.owner();
+          // Try multiple ways to get owner - RPC sync issues are common on mobile
+          try {
+            owner = await campaignContract.owner();
+          } catch (firstError) {
+            console.log(`First owner() call failed, trying backup RPC...`);
+            
+            // Try with backup RPC provider if available
+            if (backupProvider) {
+              const backupContract = new ethers.Contract(address, campaignAbi, backupProvider);
+              owner = await backupContract.owner();
+              console.log(`Successfully got owner using backup RPC provider`);
+            } else if (window.ethereum) {
+              // Last resort: try forcing wallet provider
+              const walletProvider = new ethers.BrowserProvider(window.ethereum);
+              const walletContract = new ethers.Contract(address, campaignAbi, walletProvider);
+              owner = await walletContract.owner();
+              console.log(`Successfully got owner using wallet provider`);
+            } else {
+              throw firstError;
+            }
+          }
+          
+          // Validate owner is not empty
+          if (!owner || owner === '0x0000000000000000000000000000000000000000') {
+            console.log(`Campaign ${address} has invalid owner address: ${owner}`);
+            continue;
+          }
         } catch (error) {
           console.log(`Skipping invalid campaign contract at ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+          console.log(`Error details:`, error);
           continue;
         }
         
@@ -471,8 +525,8 @@ export default function Campaigns() {
         
         newCampaigns.push(campaign);
         
-        // Small delay between campaigns
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Larger delay between campaigns for mobile stability
+        await new Promise(resolve => setTimeout(resolve, 200));
         
       } catch (err) {
         console.warn(`Skipping campaign (could not load): ${address}`, err);
