@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, TrendingUp, Users, DollarSign, Clock, Target } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,6 @@ import { ProgressTracker } from '../lib/progress-tracker';
 
 export default function MyCampaigns() {
   const { wallet } = useWallet();
-  const [, setLocation] = useLocation();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -454,37 +453,18 @@ export default function MyCampaigns() {
                       </div>
                       
                       <div className="flex flex-col gap-2 ml-4">
-                        <button 
-                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
-                          onClick={(e) => {
-                            console.log('=== SIMPLE BUTTON CLICK EVENT ===');
-                            console.log('Event object:', e);
-                            console.log('Campaign object:', campaign);
-                            console.log('Contract address:', campaign.contractAddress);
-                            console.log('setLocation function:', setLocation);
-                            
-                            e.preventDefault();
-                            e.stopPropagation();
-                            
-                            try {
-                              if (campaign.contractAddress) {
-                                console.log('Calling setLocation with:', `/campaign/${campaign.contractAddress}`);
-                                // Try using window.location.href instead of setLocation
-                                window.location.href = `/campaign/${campaign.contractAddress}`;
-                                console.log('Navigation called successfully');
-                              } else {
-                                console.error('No contract address found');
-                              }
-                            } catch (error) {
-                              console.error('Error in click handler:', error);
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            if (campaign.contractAddress) {
+                              window.location.href = `/campaign/${campaign.contractAddress}`;
                             }
                           }}
-                          onMouseDown={() => console.log('Mouse down on button')}
-                          onMouseUp={() => console.log('Mouse up on button')}
                         >
                           <Edit className="w-4 h-4 mr-2" />
                           View Details
-                        </button>
+                        </Button>
                         {campaign.status === 'ended' && (campaign as any).hasWithdrawableFunds && (
                           <Button 
                             onClick={() => handleWithdraw(campaign.contractAddress)}
