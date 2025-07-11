@@ -19,6 +19,7 @@ export default function MyCampaigns() {
   const { wallet } = useWallet();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,8 +66,13 @@ export default function MyCampaigns() {
         "function deadline() view returns (uint256)",
         "function owner() view returns (address)",
         "function goal() view returns (uint256)",
+        "function getTotalBalance() view returns (uint256,uint256)",
         "function getWithdrawableAmount() view returns (uint256,uint256)",
         "function getFeeBalances() view returns (uint256,uint256)"
+      ];
+      
+      const erc20Abi = [
+        "function balanceOf(address) view returns (uint256)"
       ];
 
       // Process campaigns one by one to avoid rate limiting
@@ -114,7 +120,6 @@ export default function MyCampaigns() {
           try {
             deadline = await campaignContract.deadline();
             goal = await campaignContract.goal();
-            [ethAvailable] = await campaignContract.getWithdrawableAmount();
           } catch (error) {
             console.log(`Failed to get basic campaign data for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
             continue;
@@ -125,21 +130,57 @@ export default function MyCampaigns() {
           const deadlineNum = Number(deadline);
           const isActive = deadlineNum * 1000 > Date.now();
           
-          // Get progress using frontend tracker
+          // Get blockchain data using getTotalBalance() method (consistent with other components)
           let blockchainRaised = '0';
-          
-          if (isActive) {
-            // For active campaigns, use withdrawable amount
-            blockchainRaised = ethers.formatEther(ethAvailable);
-          } else {
-            // For ended campaigns, try to get total raised (withdrawable + fees)
+          try {
+            const totalBalance = await campaignContract.getTotalBalance();
+            const ethBalance = ethers.formatEther(totalBalance[0]); // ethBalance is first return value
+            
+            // Only include FLW balance if enabled
+            const flwEnabled = import.meta.env.VITE_ALLOW_FLW === 'true';
+            let totalUSDValue = 0;
+            
+            // Convert ETH to USD
+            if (parseFloat(ethBalance) > 0) {
+              const ethUSDValue = await ProgressTracker.convertEthToUSD(ethBalance);
+              totalUSDValue += parseFloat(ethUSDValue);
+            }
+            
+            // Add USDC value by querying USDC contract directly
+            const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
             try {
-              const [currentFees] = await campaignContract.getFeeBalances();
-              const totalDonationsReceived = ethAvailable + currentFees;
-              blockchainRaised = ethers.formatEther(totalDonationsReceived);
+              const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, provider);
+              const usdcBalance = await usdcContract.balanceOf(address);
+              const usdcAmount = ethers.formatUnits(usdcBalance, 6); // USDC has 6 decimals
+              
+              if (parseFloat(usdcAmount) > 0) {
+                const usdcUSDValue = await ProgressTracker.convertToUSD(usdcAmount, 'USDC');
+                totalUSDValue += parseFloat(usdcUSDValue);
+              }
             } catch (error) {
-              console.log('Could not get fees for ended campaign, using withdrawable amount');
+              console.log(`Failed to fetch USDC balance for ${address}:`, error);
+            }
+            
+            // Add FLW value if enabled
+            if (flwEnabled) {
+              const flwBalance = ethers.formatEther(totalBalance[1]); // flwBalance is second return value
+              if (parseFloat(flwBalance) > 0) {
+                const flwUSDValue = await ProgressTracker.convertToUSD(flwBalance, 'FLW');
+                totalUSDValue += parseFloat(flwUSDValue);
+              }
+            }
+            
+            blockchainRaised = ethBalance; // Use ETH as base for progress tracking
+            console.log(`My Campaigns: Campaign ${address} blockchain balance: ${blockchainRaised} ETH${flwEnabled ? ` (Total USD: $${totalUSDValue.toFixed(2)})` : ''}`);
+          } catch (error) {
+            console.log(`Failed to get getTotalBalance for ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+            // Fallback to withdrawable amount
+            try {
+              [ethAvailable] = await campaignContract.getWithdrawableAmount();
               blockchainRaised = ethers.formatEther(ethAvailable);
+            } catch (fallbackError) {
+              console.log(`Fallback getWithdrawableAmount also failed for ${address}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
+              blockchainRaised = '0';
             }
           }
           
@@ -213,7 +254,7 @@ export default function MyCampaigns() {
     if (!wallet) return;
     
     try {
-      setLoading(true);
+      setWithdrawing(true);
       
       const campaignContract = getCampaignContract(contractAddress, wallet);
       const tx = await campaignContract.withdraw();
@@ -227,7 +268,7 @@ export default function MyCampaigns() {
       console.error('Withdrawal failed:', error);
       setError('Failed to withdraw funds: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
-      setLoading(false);
+      setWithdrawing(false);
     }
   };
 
@@ -409,37 +450,16 @@ export default function MyCampaigns() {
                         {campaign.status === 'ended' && parseFloat(campaign.raised) > 0 && (
                           <Button 
                             onClick={() => handleWithdraw(campaign.contractAddress)}
-                            disabled={loading}
+                            disabled={withdrawing}
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <DollarSign className="w-4 h-4 mr-2" />
-                            Withdraw
+                            {withdrawing ? 'Withdrawing...' : 'Withdraw'}
                           </Button>
                         )}
                       </div>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      {campaign.acceptedTokens.map((token) => (
-                        <Badge key={token} variant="outline">
-                          {token}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-2 lg:w-auto w-full">
-                    <Link href={`/campaign/${campaign.contractAddress}`}>
-                      <Button className="bg-freeflow-900 hover:bg-freeflow-800 text-white w-full">
-                        View Campaign
-                      </Button>
-                    </Link>
-                    {campaign.isActive && (
-                      <Button variant="outline" className="w-full" onClick={() => handleWithdraw(campaign.contractAddress || '')}>
-                        Withdraw Funds
-                      </Button>
-                    )}
                   </div>
                 </div>
               </Card>
@@ -447,8 +467,6 @@ export default function MyCampaigns() {
           </div>
         )}
       </PageContainer>
-
-
     </div>
   );
 }
