@@ -372,9 +372,9 @@ export default function Campaigns() {
         console.log(`Using public RPC provider: ${rpcUrls[0]}`);
       }
     } else {
-      // For mobile browsers without wallet, try multiple RPC endpoints
+      // For mobile browsers without wallet, try multiple RPC endpoints - prioritize most reliable
       const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-        ? ['https://base.publicnode.com', 'https://mainnet.base.org', 'https://base-rpc.publicnode.com']
+        ? ['https://mainnet.base.org', 'https://base.publicnode.com', 'https://base-rpc.publicnode.com']
         : ['https://sepolia.base.org', 'https://base-sepolia.publicnode.com'];
       
       // Try primary RPC
@@ -518,13 +518,45 @@ export default function Campaigns() {
         // Get campaign progress using frontend tracker
         const goalInEth = ethers.formatEther(goal);
         
-        // Get current blockchain data for sync
+        // Get current blockchain data for sync - try multiple providers if first fails
         let blockchainRaised = '0';
         if (isActive) {
           // For active campaigns, use current withdrawable amount
-          const withdrawableResult = await campaignContract.getWithdrawableAmount();
-          const [ethAvailable] = withdrawableResult;
-          blockchainRaised = ethers.formatEther(ethAvailable);
+          try {
+            const withdrawableResult = await campaignContract.getWithdrawableAmount();
+            const [ethAvailable] = withdrawableResult;
+            blockchainRaised = ethers.formatEther(ethAvailable);
+            console.log(`Primary RPC got withdrawable amount: ${blockchainRaised} ETH`);
+            
+            // If we got zero but have a backup provider, try backup
+            if (blockchainRaised === '0.0' && backupProvider) {
+              console.log(`Zero amount from primary RPC, trying backup provider...`);
+              const backupContract = new ethers.Contract(address, campaignAbi, backupProvider);
+              const backupResult = await backupContract.getWithdrawableAmount();
+              const [backupEthAvailable] = backupResult;
+              const backupRaised = ethers.formatEther(backupEthAvailable);
+              console.log(`Backup RPC got withdrawable amount: ${backupRaised} ETH`);
+              
+              if (parseFloat(backupRaised) > 0) {
+                blockchainRaised = backupRaised;
+                console.log(`Using backup RPC data: ${blockchainRaised} ETH`);
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to get withdrawable amount from primary RPC:`, error);
+            // Try backup provider
+            if (backupProvider) {
+              try {
+                const backupContract = new ethers.Contract(address, campaignAbi, backupProvider);
+                const backupResult = await backupContract.getWithdrawableAmount();
+                const [backupEthAvailable] = backupResult;
+                blockchainRaised = ethers.formatEther(backupEthAvailable);
+                console.log(`Backup RPC got withdrawable amount: ${blockchainRaised} ETH`);
+              } catch (backupError) {
+                console.warn(`Both RPC providers failed for withdrawable amount:`, backupError);
+              }
+            }
+          }
         } else {
           // For ended campaigns, try to get total raised (withdrawable + fees)
           try {
