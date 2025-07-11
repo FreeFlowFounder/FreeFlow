@@ -326,19 +326,49 @@ export default function Campaigns() {
     let backupProvider;
     
     if (window.ethereum) {
-      // Force Base network before using wallet provider
+      // Try to use wallet provider, but fall back to public RPC if user declines
       try {
+        // Force Base network before using wallet provider
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: '0x2105' }], // Base mainnet
         });
         console.log('Ensured wallet is on Base network');
+        
+        provider = new ethers.BrowserProvider(window.ethereum);
+        console.log('Using wallet RPC provider for campaign loading');
       } catch (error) {
-        console.warn('Could not switch wallet to Base network:', error);
+        console.warn('Wallet interaction declined or failed, using public RPC:', error);
+        // Fall back to public RPC
+        const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
+          ? ['https://base.publicnode.com', 'https://mainnet.base.org', 'https://base-rpc.publicnode.com']
+          : ['https://sepolia.base.org', 'https://base-sepolia.publicnode.com'];
+        
+        provider = new ethers.JsonRpcProvider(rpcUrls[0], {
+          chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+          name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+        }, {
+          staticNetwork: true,
+          batchMaxCount: 1,
+          batchMaxSize: 1024,
+          polling: false
+        });
+        
+        // Setup backup RPC
+        if (rpcUrls.length > 1) {
+          backupProvider = new ethers.JsonRpcProvider(rpcUrls[1], {
+            chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+            name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+          }, {
+            staticNetwork: true,
+            batchMaxCount: 1,
+            batchMaxSize: 1024,
+            polling: false
+          });
+        }
+        
+        console.log(`Using public RPC provider: ${rpcUrls[0]}`);
       }
-      
-      provider = new ethers.BrowserProvider(window.ethereum);
-      console.log('Using wallet RPC provider for campaign loading');
     } else {
       // For mobile browsers without wallet, try multiple RPC endpoints
       const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
@@ -390,8 +420,14 @@ export default function Campaigns() {
       console.log(`Loading campaign ${i + 1}/${endIndex}: ${address.slice(0,8)}...`);
       
       try {
-        // First check if the contract is actually deployed
-        const contractCode = await provider.getCode(address);
+        // First check if the contract is actually deployed (with timeout)
+        const contractCode = await Promise.race([
+          provider.getCode(address),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Contract check timeout')), 5000)
+          )
+        ]);
+        
         if (contractCode === '0x') {
           console.log(`No contract found at address ${address}, skipping`);
           continue;
@@ -404,7 +440,12 @@ export default function Campaigns() {
         try {
           // Try multiple ways to get owner - RPC sync issues are common on mobile
           try {
-            owner = await campaignContract.owner();
+            owner = await Promise.race([
+              campaignContract.owner(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Owner call timeout')), 5000)
+              )
+            ]);
           } catch (firstError) {
             console.log(`First owner() call failed, trying backup RPC...`);
             
