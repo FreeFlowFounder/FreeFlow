@@ -39,31 +39,7 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const [showDebug, setShowDebug] = useState(false);
 
-  // Mobile debug console - capture logs for mobile viewing
-  useEffect(() => {
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-      setShowDebug(true);
-      
-      const originalLog = console.log;
-      const originalError = console.error;
-      
-      console.log = (...args) => {
-        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
-        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()}: ${logMessage}`]);
-        originalLog.apply(console, args);
-      };
-      
-      console.error = (...args) => {
-        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
-        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()} ERROR: ${logMessage}`]);
-        originalError.apply(console, args);
-      };
-    }
-  }, []);
 
   useEffect(() => {
     fetchCampaigns();
@@ -328,49 +304,9 @@ export default function Campaigns() {
     let backupProvider;
     
     if (window.ethereum) {
-      // Try to use wallet provider, but fall back to public RPC if user declines
-      try {
-        // Force Base network before using wallet provider
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x2105' }], // Base mainnet
-        });
-        console.log('Ensured wallet is on Base network');
-        
-        provider = new ethers.BrowserProvider(window.ethereum);
-        console.log('Using wallet RPC provider for campaign loading');
-      } catch (error) {
-        console.warn('Wallet interaction declined or failed, using public RPC:', error);
-        // Fall back to public RPC
-        const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
-          ? ['https://base.publicnode.com', 'https://mainnet.base.org', 'https://base-rpc.publicnode.com']
-          : ['https://sepolia.base.org', 'https://base-sepolia.publicnode.com'];
-        
-        provider = new ethers.JsonRpcProvider(rpcUrls[0], {
-          chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
-          name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
-        }, {
-          staticNetwork: true,
-          batchMaxCount: 1,
-          batchMaxSize: 1024,
-          polling: false
-        });
-        
-        // Setup backup RPC
-        if (rpcUrls.length > 1) {
-          backupProvider = new ethers.JsonRpcProvider(rpcUrls[1], {
-            chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
-            name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
-          }, {
-            staticNetwork: true,
-            batchMaxCount: 1,
-            batchMaxSize: 1024,
-            polling: false
-          });
-        }
-        
-        console.log(`Using public RPC provider: ${rpcUrls[0]}`);
-      }
+      // Simple wallet provider approach (same as original desktop behavior)
+      console.log('Using wallet provider for campaign loading');
+      provider = new ethers.BrowserProvider(window.ethereum);
     } else {
       // For mobile browsers without wallet, try multiple RPC endpoints - prioritize most reliable
       const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
@@ -552,11 +488,38 @@ export default function Campaigns() {
                   });
                   
                   const walletProvider = new ethers.BrowserProvider(window.ethereum);
+                  
+                  // Debug: Check what network we're actually on
+                  const network = await walletProvider.getNetwork();
+                  console.log(`Wallet provider network: chainId=${network.chainId}, name=${network.name}`);
+                  
+                  // Debug: Check contract address and basic info
+                  console.log(`Contract address: ${address}`);
+                  const contractCode = await walletProvider.getCode(address);
+                  console.log(`Contract code length: ${contractCode.length}`);
+                  
+                  // Debug: Check contract balance
+                  const contractBalance = await walletProvider.getBalance(address);
+                  console.log(`Contract ETH balance: ${ethers.formatEther(contractBalance)} ETH`);
+                  
                   const walletContract = new ethers.Contract(address, campaignAbi, walletProvider);
-                  const walletResult = await walletContract.getWithdrawableAmount();
-                  const [walletEthAvailable] = walletResult;
+                  
+                  // Try to get all contract data for debugging
+                  const [walletResult, contractGoal] = await Promise.all([
+                    walletContract.getWithdrawableAmount(),
+                    walletContract.goal()
+                  ]);
+                  
+                  const [walletEthAvailable, walletFeeAvailable] = walletResult;
                   const walletRaised = ethers.formatEther(walletEthAvailable);
-                  console.log(`Wallet RPC got withdrawable amount: ${walletRaised} ETH`);
+                  const walletFees = ethers.formatEther(walletFeeAvailable);
+                  const goalEth = ethers.formatEther(contractGoal);
+                  
+                  console.log(`Wallet RPC detailed results:`);
+                  console.log(`- Withdrawable: ${walletRaised} ETH`);
+                  console.log(`- Fees: ${walletFees} ETH`);
+                  console.log(`- Goal: ${goalEth} ETH`);
+                  console.log(`- Contract balance: ${ethers.formatEther(contractBalance)} ETH`);
                   
                   if (parseFloat(walletRaised) > 0) {
                     blockchainRaised = walletRaised;
@@ -602,16 +565,15 @@ export default function Campaigns() {
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
-        console.log(`Initializing progress tracker for ${address}:`);
+        console.log(`Mobile wallet debugging for ${address}:`);
+        console.log(`- Connected wallet: ${window.ethereum ? 'Yes' : 'No'}`);
+        console.log(`- Campaign owner: ${owner}`);
+        console.log(`- Blockchain raised: ${blockchainRaised} ETH`);
         console.log(`- Goal: ${goalInEth} ETH`);
-        console.log(`- Is Active: ${isActive}`);
-        console.log(`- Blockchain Raised: ${blockchainRaised} ETH`);
-        console.log(`- Provider available: ${!!provider}`);
         
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
         
         // Sync with current blockchain state
-        console.log(`Syncing with blockchain state: ${blockchainRaised} ETH raised`);
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)
@@ -869,29 +831,7 @@ export default function Campaigns() {
         </div>
       </div>
 
-      {/* Mobile Debug Panel */}
-      {showDebug && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-xs p-2 max-h-40 overflow-y-auto z-50 border-t">
-          <div className="flex justify-between items-center mb-1">
-            <span className="font-bold">Mobile Debug Console</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDebug(false)}
-              className="text-white h-auto p-1"
-            >
-              ×
-            </Button>
-          </div>
-          <div className="space-y-1">
-            {debugLogs.map((log, index) => (
-              <div key={index} className="font-mono text-xs break-words">
-                {log}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Campaign Detail Modal */}
       <CampaignDetailModal
