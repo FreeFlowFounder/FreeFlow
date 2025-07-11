@@ -179,9 +179,15 @@ export class ProgressTracker {
     const progress = this.getCampaignProgress(campaignAddress);
     if (!progress) return '0';
     
-    // Convert USD back to ETH for display
-    const ethValue = await this.convertUSDToEth(progress.totalRaisedUSD);
-    return ethValue;
+    // Calculate ETH total from actual ETH donations (not USD conversion)
+    let totalETH = 0;
+    for (const donation of progress.donations) {
+      if (donation.token === 'ETH') {
+        totalETH += parseFloat(donation.amount);
+      }
+    }
+    
+    return totalETH.toFixed(6);
   }
 
   // Check if campaign progress is locked (ended)

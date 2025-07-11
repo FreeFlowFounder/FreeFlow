@@ -606,7 +606,8 @@ export default function Campaigns() {
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)
-        const raisedInEth = await ProgressTracker.getTotalRaisedETH(address);
+        // Use blockchain data directly for consistency instead of progress tracker conversion
+        const raisedInEth = blockchainRaised;
         const progress = ProgressTracker.getProgressPercentage(address);
         const goalMet = progress >= 100;
         const endDate = new Date(deadlineNum * 1000);
@@ -862,7 +863,7 @@ export default function Campaigns() {
 
       {/* Debug Info Panel for Wallet Browsers */}
       {Object.keys(debugInfo).length > 0 && (
-        <div className="fixed top-16 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
+        <div className="fixed bottom-4 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
             <span className="font-bold">Debug Info</span>
             <Button
