@@ -56,9 +56,6 @@ export class ProgressTracker {
     // For active campaigns, try to recover progress from blockchain
     if (isActive && provider) {
       try {
-        console.log(`Recovering blockchain state for active campaign: ${campaignAddress}`);
-        console.log(`Provider type: ${provider.constructor.name}`);
-        
         const campaignAbi = [
           "function getWithdrawableAmount() view returns (uint256,uint256)",
           "function goal() view returns (uint256)"
@@ -67,20 +64,14 @@ export class ProgressTracker {
         const campaignContract = new ethers.Contract(campaignAddress, campaignAbi, provider);
         
         // Get the withdrawable amount (total raised minus fees)
-        console.log(`Calling getWithdrawableAmount() for ${campaignAddress}`);
         const [withdrawableWei, feeWei] = await campaignContract.getWithdrawableAmount();
-        console.log(`Raw blockchain data: withdrawable=${withdrawableWei.toString()}, fees=${feeWei.toString()}`);
-        
         const totalRaisedWei = withdrawableWei + feeWei; // Add back the fees to get total raised
         const totalRaisedEth = ethers.formatEther(totalRaisedWei);
-        console.log(`Blockchain state recovered: ${totalRaisedEth} ETH raised for campaign ${campaignAddress}`);
         
         // Convert to USD for progress tracking
         if (parseFloat(totalRaisedEth) > 0) {
           initialTotalRaisedUSD = await this.convertEthToUSD(totalRaisedEth);
           initialProgress = Math.round((parseFloat(initialTotalRaisedUSD) / parseFloat(goalUSD)) * 100 * 100) / 100;
-          
-          console.log(`Progress recovered from blockchain: ${initialProgress}% (${initialTotalRaisedUSD} USD raised)`);
           
           // Create a synthetic donation record to represent blockchain state
           const syntheticDonation: DonationRecord = {
@@ -101,18 +92,12 @@ export class ProgressTracker {
           };
           
           this.saveCampaignProgress(campaignAddress, progress);
-          console.log(`Progress saved to localStorage for ${campaignAddress}`);
           return;
-        } else {
-          console.log(`No funds raised yet for ${campaignAddress}, using zero progress`);
         }
       } catch (error) {
         console.warn(`Failed to recover blockchain state for ${campaignAddress}:`, error);
-        console.log(`Error details:`, error);
         // Continue with normal initialization
       }
-    } else {
-      console.log(`Skipping blockchain recovery: isActive=${isActive}, provider=${!!provider}`);
     }
     
     // Normal initialization (new campaign or recovery failed)
@@ -279,7 +264,26 @@ export class ProgressTracker {
   }
 
   static async getTokenPriceUSD(coinGeckoId: string, amount: string): Promise<string> {
-    // Use fallback prices directly to avoid CORS issues in production
+    try {
+      // Try to get real-time price from CoinGecko API first
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const price = data[coinGeckoId]?.usd;
+        if (price) {
+          const usdValue = parseFloat(amount) * price;
+          console.log(`Using real-time price for ${coinGeckoId}: $${price}`);
+          return usdValue.toFixed(2);
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch ${coinGeckoId} price from CoinGecko:`, error);
+    }
+    
+    // Fallback prices only if API fails
     const fallbackPrices: { [key: string]: number } = {
       'ethereum': 3500,
       'usd-coin': 1,
@@ -297,7 +301,26 @@ export class ProgressTracker {
   }
 
   static async convertUSDToEth(usdAmount: string): Promise<string> {
-    // Use fallback price directly to avoid CORS issues in production
+    try {
+      // Try to get real-time ETH price from CoinGecko API first
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const ethPrice = data.ethereum?.usd;
+        if (ethPrice) {
+          const ethValue = parseFloat(usdAmount) / ethPrice;
+          console.log(`Using real-time ETH price: $${ethPrice}`);
+          return ethValue.toFixed(6);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch ETH price from CoinGecko:', error);
+    }
+    
+    // Fallback price only if API fails
     const ethPrice = 3500;
     const ethValue = parseFloat(usdAmount) / ethPrice;
     console.log(`Using fallback ETH price: $${ethPrice}`);

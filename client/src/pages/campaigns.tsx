@@ -102,9 +102,10 @@ export default function Campaigns() {
       // Create provider that works without wallet connection
       let provider;
       if (window.ethereum) {
-        console.log('Using wallet provider');
+        console.log('Using wallet provider (like My Campaigns) - wallet connected:', !!wallet);
         provider = new ethers.BrowserProvider(window.ethereum);
       } else {
+        console.log('No wallet detected, using public RPC providers');
         // Multiple RPC endpoints for better reliability
         // Mobile browsers prefer different RPC endpoints due to CORS policies
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -530,6 +531,8 @@ export default function Campaigns() {
                   }
                 } catch (walletError) {
                   console.warn(`Wallet RPC also failed:`, walletError);
+                  // For mobile non-wallet browsers, just use 0 and continue
+                  blockchainRaised = '0';
                 }
               }
             }
@@ -545,7 +548,12 @@ export default function Campaigns() {
                 console.log(`Backup RPC got withdrawable amount: ${blockchainRaised} ETH`);
               } catch (backupError) {
                 console.warn(`Both RPC providers failed for withdrawable amount:`, backupError);
+                // Fallback to 0 for non-wallet browsers
+                blockchainRaised = '0';
               }
+            } else {
+              // No backup provider, use 0 as fallback
+              blockchainRaised = '0';
             }
           }
         } else {
@@ -562,8 +570,14 @@ export default function Campaigns() {
             blockchainRaised = ethers.formatEther(totalRaised);
           } catch (error) {
             console.warn('Could not get blockchain data for ended campaign:', error);
-            const contractBalance = await provider.getBalance(address);
-            blockchainRaised = ethers.formatEther(contractBalance);
+            try {
+              const contractBalance = await provider.getBalance(address);
+              blockchainRaised = ethers.formatEther(contractBalance);
+            } catch (balanceError) {
+              console.warn('Could not get contract balance:', balanceError);
+              // Fallback to 0 for non-wallet browsers
+              blockchainRaised = '0';
+            }
           }
         }
         
@@ -571,15 +585,16 @@ export default function Campaigns() {
         // Show debug for any browser with ethereum to help troubleshoot
         if (window.ethereum) {
           const debugData = {
-            address,
+            address: address.slice(0, 8) + '...',
             connectedWallet: wallet ? 'Yes' : 'No',
-            campaignOwner: owner,
+            campaignOwner: owner?.slice(0, 8) + '...' || 'Unknown',
             blockchainRaised: `${blockchainRaised} ETH`,
             goal: `${goalInEth} ETH`,
             isActive,
             provider: provider?.constructor?.name || 'None',
-            walletAddress: wallet?.address || 'Not connected',
-            browserType: navigator.userAgent.includes('CoinbaseWallet') ? 'Coinbase' : 'Other'
+            walletAddress: wallet?.address?.slice(0, 8) + '...' || 'Not connected',
+            browserType: navigator.userAgent.includes('CoinbaseWallet') ? 'Coinbase' : 'Other',
+            windowEth: window.ethereum ? 'Yes' : 'No'
           };
           
           setDebugInfo(prev => ({ ...prev, [address]: debugData }));
@@ -847,7 +862,7 @@ export default function Campaigns() {
 
       {/* Debug Info Panel for Wallet Browsers */}
       {Object.keys(debugInfo).length > 0 && (
-        <div className="fixed top-16 right-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
+        <div className="fixed top-16 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
             <span className="font-bold">Debug Info</span>
             <Button
