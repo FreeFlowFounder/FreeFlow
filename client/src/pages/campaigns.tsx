@@ -41,7 +41,7 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{[key: string]: any}>({});
+
 
 
   useEffect(() => {
@@ -168,70 +168,54 @@ export default function Campaigns() {
       
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
-      console.log('Factory address:', factoryAddress);
-      console.log('Environment:', import.meta.env.VITE_NETWORK);
-      console.log('User agent:', navigator.userAgent);
-      console.log('Is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-      
-      // Check network - this is critical for mobile debugging
-      try {
-        const network = await provider.getNetwork();
-        console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
-        
-        // Base mainnet should be chainId 8453
-        if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
-          console.error('NETWORK MISMATCH: Expected Base mainnet (8453), got:', network.chainId);
+      // Verify network connection for mainnet
+      if (import.meta.env.VITE_NETWORK === 'mainnet') {
+        try {
+          const network = await provider.getNetwork();
           
-          // For mobile browsers, force reconnection to Base network
-          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-          if (isMobile) {
-            console.log('Mobile browser detected, forcing Base network connection...');
-            const baseProvider = new ethers.JsonRpcProvider('https://base.publicnode.com', {
-              chainId: 8453,
-              name: 'base'
-            }, {
-              staticNetwork: true
-            });
-            
-            // Test the forced Base connection
-            const baseNetwork = await baseProvider.getNetwork();
-            console.log('Forced Base network:', baseNetwork.name, 'Chain ID:', baseNetwork.chainId);
-            
-            if (baseNetwork.chainId === BigInt(8453)) {
-              console.log('Successfully forced Base network connection');
-              provider = baseProvider;
+          // Base mainnet should be chainId 8453
+          if (network.chainId !== BigInt(8453)) {
+            // For mobile browsers, force reconnection to Base network
+            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+              const baseProvider = new ethers.JsonRpcProvider('https://base.publicnode.com', {
+                chainId: 8453,
+                name: 'base'
+              }, {
+                staticNetwork: true
+              });
+              
+              const baseNetwork = await baseProvider.getNetwork();
+              
+              if (baseNetwork.chainId === BigInt(8453)) {
+                provider = baseProvider;
+              } else {
+                throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
+              }
             } else {
-              throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
+              throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
             }
-          } else {
-            throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
           }
+        } catch (e) {
+          console.error('Network connection error:', e);
+          throw e;
         }
-      } catch (e) {
-        console.error('Could not get network info:', e);
-        throw e;
       }
       
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
-      // Check if the contract exists at this address
-      console.log('Checking contract code at factory address...');
+      // Verify factory contract exists
       try {
         const factoryCode = await provider.getCode(factoryAddress);
-        console.log('Factory contract code length:', factoryCode.length);
-        console.log('Factory contract code preview:', factoryCode.substring(0, 100) + '...');
         
         if (factoryCode === '0x') {
           // Try alternative RPC for mobile if main one fails
           const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
           if (isMobile) {
-            console.log('Mobile browser: trying alternative RPC for contract verification...');
             const altProvider = new ethers.JsonRpcProvider('https://base-mainnet.g.alchemy.com/v2/demo');
             const altFactoryCode = await altProvider.getCode(factoryAddress);
-            console.log('Alternative RPC contract code length:', altFactoryCode.length);
             
             if (altFactoryCode !== '0x') {
-              console.log('Contract found on alternative RPC, switching provider...');
               provider = altProvider;
             } else {
               throw new Error(`No contract found at factory address ${factoryAddress}. Please verify the contract is deployed on ${import.meta.env.VITE_NETWORK}.`);
@@ -350,6 +334,7 @@ export default function Campaigns() {
       "function deadline() view returns (uint256)",
       "function owner() view returns (address)",
       "function goal() view returns (uint256)",
+      "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
       "function getWithdrawableAmount() view returns (uint256,uint256)",
       "function getFeeBalances() view returns (uint256,uint256)"
     ];
@@ -380,7 +365,7 @@ export default function Campaigns() {
         // First check if this is a valid campaign contract
         let owner;
         try {
-          // Try multiple ways to get owner - RPC sync issues are common on mobile
+          // Try to get owner with timeout
           try {
             owner = await Promise.race([
               campaignContract.owner(),
@@ -458,147 +443,21 @@ export default function Campaigns() {
         // Get campaign progress using frontend tracker
         const goalInEth = ethers.formatEther(goal);
         
-        // Get current blockchain data for sync - try multiple providers if first fails
+        // Get current blockchain data using same method as Campaign Balances
         let blockchainRaised = '0';
-        if (isActive) {
-          // For active campaigns, use current withdrawable amount
-          try {
-            const withdrawableResult = await campaignContract.getWithdrawableAmount();
-            const [ethAvailable] = withdrawableResult;
-            blockchainRaised = ethers.formatEther(ethAvailable);
-            console.log(`Primary RPC got withdrawable amount: ${blockchainRaised} ETH`);
+        
+        try {
+          // Use getTotalBalance() method (same as Campaign Balances section)
+          const totalBalance = await campaignContract.getTotalBalance();
+          blockchainRaised = ethers.formatEther(totalBalance.eth);
+          console.log(`Got total balance: ${blockchainRaised} ETH`);
             
-            // If we got zero but have a backup provider, try backup
-            if (blockchainRaised === '0.0' && backupProvider) {
-              console.log(`Zero amount from primary RPC, trying backup provider...`);
-              const backupContract = new ethers.Contract(address, campaignAbi, backupProvider);
-              const backupResult = await backupContract.getWithdrawableAmount();
-              const [backupEthAvailable] = backupResult;
-              const backupRaised = ethers.formatEther(backupEthAvailable);
-              console.log(`Backup RPC got withdrawable amount: ${backupRaised} ETH`);
-              
-              if (parseFloat(backupRaised) > 0) {
-                blockchainRaised = backupRaised;
-                console.log(`Using backup RPC data: ${blockchainRaised} ETH`);
-              }
-              // If still zero and wallet is available, try wallet RPC as last resort
-              else if (window.ethereum) {
-                console.log(`Both public RPCs returned zero, trying wallet RPC as last resort...`);
-                try {
-                  // Force Base network without showing popup
-                  await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x2105' }],
-                  });
-                  
-                  const walletProvider = new ethers.BrowserProvider(window.ethereum);
-                  
-                  // Debug: Check what network we're actually on
-                  const network = await walletProvider.getNetwork();
-                  console.log(`Wallet provider network: chainId=${network.chainId}, name=${network.name}`);
-                  
-                  // Debug: Check contract address and basic info
-                  console.log(`Contract address: ${address}`);
-                  const contractCode = await walletProvider.getCode(address);
-                  console.log(`Contract code length: ${contractCode.length}`);
-                  
-                  // Debug: Check contract balance
-                  const contractBalance = await walletProvider.getBalance(address);
-                  console.log(`Contract ETH balance: ${ethers.formatEther(contractBalance)} ETH`);
-                  
-                  const walletContract = new ethers.Contract(address, campaignAbi, walletProvider);
-                  
-                  // Try to get all contract data for debugging
-                  const [walletResult, contractGoal] = await Promise.all([
-                    walletContract.getWithdrawableAmount(),
-                    walletContract.goal()
-                  ]);
-                  
-                  const [walletEthAvailable, walletFeeAvailable] = walletResult;
-                  const walletRaised = ethers.formatEther(walletEthAvailable);
-                  const walletFees = ethers.formatEther(walletFeeAvailable);
-                  const goalEth = ethers.formatEther(contractGoal);
-                  
-                  console.log(`Wallet RPC detailed results:`);
-                  console.log(`- Withdrawable: ${walletRaised} ETH`);
-                  console.log(`- Fees: ${walletFees} ETH`);
-                  console.log(`- Goal: ${goalEth} ETH`);
-                  console.log(`- Contract balance: ${ethers.formatEther(contractBalance)} ETH`);
-                  
-                  if (parseFloat(walletRaised) > 0) {
-                    blockchainRaised = walletRaised;
-                    console.log(`Using wallet RPC data: ${blockchainRaised} ETH`);
-                  }
-                } catch (walletError) {
-                  console.warn(`Wallet RPC also failed:`, walletError);
-                  // For mobile non-wallet browsers, just use 0 and continue
-                  blockchainRaised = '0';
-                }
-              }
-            }
-          } catch (error) {
-            console.warn(`Failed to get withdrawable amount from primary RPC:`, error);
-            // Try backup provider
-            if (backupProvider) {
-              try {
-                const backupContract = new ethers.Contract(address, campaignAbi, backupProvider);
-                const backupResult = await backupContract.getWithdrawableAmount();
-                const [backupEthAvailable] = backupResult;
-                blockchainRaised = ethers.formatEther(backupEthAvailable);
-                console.log(`Backup RPC got withdrawable amount: ${blockchainRaised} ETH`);
-              } catch (backupError) {
-                console.warn(`Both RPC providers failed for withdrawable amount:`, backupError);
-                // Fallback to 0 for non-wallet browsers
-                blockchainRaised = '0';
-              }
-            } else {
-              // No backup provider, use 0 as fallback
-              blockchainRaised = '0';
-            }
-          }
-        } else {
-          // For ended campaigns, try to get total raised (withdrawable + fees)
-          try {
-            const [withdrawableResult, feeResult] = await Promise.all([
-              campaignContract.getWithdrawableAmount(),
-              campaignContract.getFeeBalances()
-            ]);
-            const [ethWithdrawable] = withdrawableResult;
-            const [ethFees] = feeResult;
-            
-            const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
-            blockchainRaised = ethers.formatEther(totalRaised);
-          } catch (error) {
-            console.warn('Could not get blockchain data for ended campaign:', error);
-            try {
-              const contractBalance = await provider.getBalance(address);
-              blockchainRaised = ethers.formatEther(contractBalance);
-            } catch (balanceError) {
-              console.warn('Could not get contract balance:', balanceError);
-              // Fallback to 0 for non-wallet browsers
-              blockchainRaised = '0';
-            }
-          }
+        } catch (error) {
+          console.warn(`Failed to get total balance for ${address}:`, error);
+          blockchainRaised = '0';
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
-        // Show debug for any browser with ethereum to help troubleshoot
-        if (window.ethereum) {
-          const debugData = {
-            address: address.slice(0, 8) + '...',
-            connectedWallet: wallet ? 'Yes' : 'No',
-            campaignOwner: owner?.slice(0, 8) + '...' || 'Unknown',
-            blockchainRaised: `${blockchainRaised} ETH`,
-            goal: `${goalInEth} ETH`,
-            isActive,
-            provider: provider?.constructor?.name || 'None',
-            walletAddress: wallet?.address?.slice(0, 8) + '...' || 'Not connected',
-            browserType: navigator.userAgent.includes('CoinbaseWallet') ? 'Coinbase' : 'Other',
-            windowEth: window.ethereum ? 'Yes' : 'No'
-          };
-          
-          setDebugInfo(prev => ({ ...prev, [address]: debugData }));
-        }
         
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
         
@@ -861,33 +720,7 @@ export default function Campaigns() {
         </div>
       </div>
 
-      {/* Debug Info Panel for Wallet Browsers */}
-      {Object.keys(debugInfo).length > 0 && (
-        <div className="fixed bottom-4 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold">Debug Info</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDebugInfo({})}
-              className="text-white h-auto p-1"
-            >
-              ×
-            </Button>
-          </div>
-          {Object.entries(debugInfo).map(([campaignAddr, data]) => (
-            <div key={campaignAddr} className="mb-3 border-b border-gray-600 pb-2">
-              <div className="font-semibold mb-1">Campaign: {campaignAddr.slice(0, 8)}...</div>
-              {Object.entries(data).map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="opacity-75">{key}:</span>
-                  <span className="ml-2 break-all">{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+
 
       {/* Campaign Detail Modal */}
       <CampaignDetailModal

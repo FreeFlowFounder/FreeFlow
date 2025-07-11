@@ -17,6 +17,8 @@ interface CampaignProgress {
   progress: number;
   isEnded: boolean;
   endTimestamp?: number;
+  finalETHAmount?: string; // Stores the final ETH amount when campaign ends
+  finalTokenBalances?: { [token: string]: string }; // Stores final token balances
 }
 
 // Storage keys
@@ -45,7 +47,10 @@ export class ProgressTracker {
     provider?: any
   ): Promise<void> {
     const existing = this.getCampaignProgress(campaignAddress);
-    if (existing) return; // Already initialized
+    if (existing) {
+      console.log(`Campaign ${campaignAddress} already initialized with progress: ${existing.progress}%`);
+      return; // Already initialized
+    }
     
     // Convert ETH goal to USD at campaign creation
     const goalUSD = await this.convertEthToUSD(goalInEth);
@@ -57,35 +62,83 @@ export class ProgressTracker {
     if (isActive && provider) {
       try {
         const campaignAbi = [
-          "function getWithdrawableAmount() view returns (uint256,uint256)",
+          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
           "function goal() view returns (uint256)"
         ];
         
         const campaignContract = new ethers.Contract(campaignAddress, campaignAbi, provider);
         
-        // Get the withdrawable amount (total raised minus fees)
-        const [withdrawableWei, feeWei] = await campaignContract.getWithdrawableAmount();
-        const totalRaisedWei = withdrawableWei + feeWei; // Add back the fees to get total raised
-        const totalRaisedEth = ethers.formatEther(totalRaisedWei);
+        // Get the total balance (same as Campaign Balances section)
+        const totalBalance = await campaignContract.getTotalBalance();
+        const totalRaisedEth = ethers.formatEther(totalBalance.eth);
         
-        // Convert to USD for progress tracking
+        // Get all token balances for complete tracking
+        const syntheticDonations: DonationRecord[] = [];
+        let totalUSDValue = 0;
+        
+        // Add ETH donations if any
         if (parseFloat(totalRaisedEth) > 0) {
-          initialTotalRaisedUSD = await this.convertEthToUSD(totalRaisedEth);
-          initialProgress = Math.round((parseFloat(initialTotalRaisedUSD) / parseFloat(goalUSD)) * 100 * 100) / 100;
-          
-          // Create a synthetic donation record to represent blockchain state
-          const syntheticDonation: DonationRecord = {
+          const ethUSDValue = await this.convertEthToUSD(totalRaisedEth);
+          syntheticDonations.push({
             amount: totalRaisedEth,
             token: 'ETH',
-            usdValue: initialTotalRaisedUSD,
+            usdValue: ethUSDValue,
             timestamp: Date.now(),
-            txHash: 'BLOCKCHAIN_RECOVERY'
-          };
+            txHash: 'BLOCKCHAIN_RECOVERY_ETH'
+          });
+          totalUSDValue += parseFloat(ethUSDValue);
+        }
+        
+        // Add token donations (USDC, FLW) if any
+        if (totalBalance.tokens && totalBalance.tokens.length > 0) {
+          const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54BdA02913'; // Base USDC
+          const flwAddress = '0x84Ae3089F87CC1baa19586bB4C4059c7d24c648E'; // FLW token
+          
+          for (let i = 0; i < totalBalance.tokens.length; i++) {
+            const tokenAddress = totalBalance.tokens[i];
+            const tokenAmount = totalBalance.amounts[i];
+            
+            if (tokenAddress.toLowerCase() === usdcAddress.toLowerCase()) {
+              // USDC (6 decimals)
+              const usdcAmount = ethers.formatUnits(tokenAmount, 6);
+              if (parseFloat(usdcAmount) > 0) {
+                const usdcUSDValue = await this.convertToUSD(usdcAmount, 'USDC');
+                syntheticDonations.push({
+                  amount: usdcAmount,
+                  token: 'USDC',
+                  usdValue: usdcUSDValue,
+                  timestamp: Date.now(),
+                  txHash: 'BLOCKCHAIN_RECOVERY_USDC'
+                });
+                totalUSDValue += parseFloat(usdcUSDValue);
+              }
+            } else if (tokenAddress.toLowerCase() === flwAddress.toLowerCase()) {
+              // FLW (18 decimals)
+              const flwAmount = ethers.formatUnits(tokenAmount, 18);
+              if (parseFloat(flwAmount) > 0) {
+                const flwUSDValue = await this.convertToUSD(flwAmount, 'FLW');
+                syntheticDonations.push({
+                  amount: flwAmount,
+                  token: 'FLW',
+                  usdValue: flwUSDValue,
+                  timestamp: Date.now(),
+                  txHash: 'BLOCKCHAIN_RECOVERY_FLW'
+                });
+                totalUSDValue += parseFloat(flwUSDValue);
+              }
+            }
+          }
+        }
+        
+        // Create progress if we have any donations
+        if (syntheticDonations.length > 0) {
+          initialTotalRaisedUSD = totalUSDValue.toString();
+          initialProgress = Math.round((totalUSDValue / parseFloat(goalUSD)) * 100 * 100) / 100;
           
           const progress: CampaignProgress = {
             goalUSD,
             goalETH: goalInEth,
-            donations: [syntheticDonation],
+            donations: syntheticDonations,
             totalRaisedUSD: initialTotalRaisedUSD,
             progress: initialProgress,
             isEnded: false
@@ -179,7 +232,19 @@ export class ProgressTracker {
     const progress = this.getCampaignProgress(campaignAddress);
     if (!progress) return '0';
     
-    // Calculate ETH total from actual ETH donations (not USD conversion)
+    // For ended campaigns, use the locked final ETH amount if available
+    if (progress.isEnded && progress.finalTokenBalances?.ETH) {
+      console.log(`Using locked final ETH amount: ${progress.finalTokenBalances.ETH} ETH`);
+      return progress.finalTokenBalances.ETH;
+    }
+    
+    // For ended campaigns without finalTokenBalances, use the locked USD amount converted to ETH
+    if (progress.isEnded) {
+      const lockedETH = await this.convertUSDToEth(progress.totalRaisedUSD);
+      return lockedETH;
+    }
+    
+    // For active campaigns, calculate ETH total from actual ETH donations
     let totalETH = 0;
     for (const donation of progress.donations) {
       if (donation.token === 'ETH') {
@@ -188,6 +253,14 @@ export class ProgressTracker {
     }
     
     return totalETH.toFixed(6);
+  }
+
+  // Get final token balances for ended campaigns
+  static getFinalTokenBalances(campaignAddress: string): { [token: string]: string } | null {
+    const progress = this.getCampaignProgress(campaignAddress);
+    if (!progress || !progress.isEnded) return null;
+    
+    return progress.finalTokenBalances || null;
   }
 
   // Check if campaign progress is locked (ended)
@@ -223,28 +296,61 @@ export class ProgressTracker {
       newProgress.isEnded = !isActive;
       if (!isActive) {
         newProgress.endTimestamp = Date.now();
+        console.log(`Campaign ${campaignAddress} ended - locking total balance at ${currentRaisedInEth} ETH`);
       }
       this.saveCampaignProgress(campaignAddress, newProgress);
     } else if (progress.isEnded) {
       // Progress is locked, don't update
+      console.log(`Campaign ${campaignAddress} progress is locked - preserving final balance`);
       return;
     } else {
-      // For active campaigns, only update if we have no donations recorded yet
-      if (progress.donations.length === 0) {
-        const currentRaisedUSD = await this.convertEthToUSD(currentRaisedInEth);
-        const blockchainRaisedUSD = parseFloat(currentRaisedUSD);
-        const trackedRaisedUSD = parseFloat(progress.totalRaisedUSD);
-        
-        if (blockchainRaisedUSD > trackedRaisedUSD) {
-          progress.totalRaisedUSD = currentRaisedUSD;
-          progress.progress = Math.round((blockchainRaisedUSD / parseFloat(progress.goalUSD)) * 100 * 100) / 100;
-          this.saveCampaignProgress(campaignAddress, progress);
-        }
+      // For active campaigns, update with current blockchain data
+      const currentRaisedUSD = await this.convertEthToUSD(currentRaisedInEth);
+      const blockchainRaisedUSD = parseFloat(currentRaisedUSD);
+      const trackedRaisedUSD = parseFloat(progress.totalRaisedUSD);
+      
+      // Always update active campaigns with latest blockchain data
+      if (blockchainRaisedUSD !== trackedRaisedUSD) {
+        progress.totalRaisedUSD = currentRaisedUSD;
+        progress.progress = Math.round((blockchainRaisedUSD / parseFloat(progress.goalUSD)) * 100 * 100) / 100;
+        this.saveCampaignProgress(campaignAddress, progress);
+        console.log(`Updated active campaign ${campaignAddress} with ${currentRaisedInEth} ETH`);
       }
       
-      // Mark as ended if blockchain shows inactive
+      // Mark as ended if blockchain shows inactive and lock the final balance
       if (!isActive && !progress.isEnded) {
-        this.endCampaign(campaignAddress);
+        progress.isEnded = true;
+        progress.endTimestamp = Date.now();
+        
+        // CRITICAL: Re-calculate final balance to ensure we capture the exact end state
+        // For ended campaigns, we need to capture all token balances, not just ETH
+        const finalTokenBalances: { [token: string]: string } = {};
+        let totalFinalUSD = 0;
+        
+        // Calculate final USD value from all donations recorded
+        for (const donation of progress.donations) {
+          totalFinalUSD += parseFloat(donation.usdValue);
+          if (!finalTokenBalances[donation.token]) {
+            finalTokenBalances[donation.token] = '0';
+          }
+          finalTokenBalances[donation.token] = (parseFloat(finalTokenBalances[donation.token]) + parseFloat(donation.amount)).toString();
+        }
+        
+        // Lock the final balance and progress
+        progress.totalRaisedUSD = totalFinalUSD.toString();
+        progress.progress = Math.round((totalFinalUSD / parseFloat(progress.goalUSD)) * 100 * 100) / 100;
+        
+        // Store the final token balances for reference
+        progress.finalETHAmount = currentRaisedInEth;
+        progress.finalTokenBalances = finalTokenBalances;
+        
+        this.saveCampaignProgress(campaignAddress, progress);
+        
+        // Enhanced logging with all token balances
+        const tokenSummary = Object.entries(finalTokenBalances)
+          .map(([token, amount]) => `${amount} ${token}`)
+          .join(', ');
+        console.log(`🔒 Campaign ${campaignAddress} ENDED - LOCKED final balance: ${tokenSummary} (${totalFinalUSD.toFixed(2)} USD, ${progress.progress}%)`);
       }
     }
   }
