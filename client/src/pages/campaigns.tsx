@@ -560,6 +560,20 @@ export default function Campaigns() {
         
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
         
+        // Debug campaign processing
+        if (campaigns.length === 0) {
+          setDebugInfo(prev => ({ ...prev, firstCampaign: {
+            step: 'Processing first campaign',
+            address: address.slice(0, 10) + '...',
+            title: title || 'No title',
+            goalInEth,
+            isActive,
+            blockchainRaised,
+            progress: ProgressTracker.getProgressPercentage(address),
+            endDate: new Date(deadline * 1000).toISOString().split('T')[0]
+          } }));
+        }
+        
         // Sync with current blockchain state
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
@@ -610,6 +624,23 @@ export default function Campaigns() {
 
     if (startIndex === 0) {
       setCampaigns(newCampaigns);
+      
+      // Force re-render for mobile browsers
+      setTimeout(() => {
+        setCampaigns([...newCampaigns]);
+      }, 100);
+      
+      // Debug final campaign list for mobile
+      setDebugInfo(prev => ({ ...prev, finalCampaigns: {
+        step: 'Final campaign processing',
+        totalProcessed: newCampaigns.length,
+        firstCampaignActive: newCampaigns.length > 0 ? newCampaigns[0].isActive : 'no campaigns',
+        firstCampaignDeadline: newCampaigns.length > 0 ? new Date(newCampaigns[0].endDate).toISOString().split('T')[0] : 'none',
+        currentTime: new Date().toISOString().split('T')[0],
+        campaignTitle: newCampaigns.length > 0 ? newCampaigns[0].title : 'none',
+        filter: filter,
+        sortBy: sortBy
+      } }));
     } else {
       setCampaigns(prev => [...prev, ...newCampaigns]);
     }
@@ -649,9 +680,25 @@ export default function Campaigns() {
                            campaign.creator.toLowerCase().includes(searchTerm.toLowerCase());
       
       const campaignDeadline = new Date(campaign.endDate).getTime();
+      const isActiveNow = campaignDeadline > now;
+      
+      // Debug filtering for mobile
+      if (campaigns.length > 0 && campaign === campaigns[0]) {
+        setDebugInfo(prev => ({ ...prev, filtering: {
+          step: 'Filtering first campaign',
+          campaignDeadline: new Date(campaignDeadline).toISOString(),
+          currentTime: new Date(now).toISOString(),
+          isActiveNow,
+          campaignIsActive: campaign.isActive,
+          filter: filter,
+          matchesSearch,
+          willShow: filter === 'active' ? (matchesSearch && isActiveNow) : matchesSearch
+        } }));
+      }
+      
       switch (filter) {
         case 'active':
-          return matchesSearch && campaignDeadline > now;
+          return matchesSearch && isActiveNow;
         case 'ended':
           return matchesSearch && campaignDeadline <= now;
         default:
@@ -778,6 +825,19 @@ export default function Campaigns() {
               <p className="text-sm text-muted-foreground mt-2">
                 Try adjusting your search or filter options.
               </p>
+              {/* Debug info for mobile */}
+              {campaigns.length > 0 && (
+                <div className="mt-4 text-xs text-left bg-gray-100 p-2 rounded max-w-md mx-auto">
+                  <div><strong>Debug Info:</strong></div>
+                  <div>Total campaigns: {campaigns.length}</div>
+                  <div>Filter: {filter}</div>
+                  <div>Search: "{searchTerm}"</div>
+                  <div>First campaign title: {campaigns[0]?.title || 'None'}</div>
+                  <div>First campaign active: {campaigns[0]?.isActive?.toString() || 'None'}</div>
+                  <div>First campaign deadline: {campaigns[0]?.endDate?.split('T')[0] || 'None'}</div>
+                  <div>Current time: {new Date().toISOString().split('T')[0]}</div>
+                </div>
+              )}
             </div>
           ) : (
             <>
