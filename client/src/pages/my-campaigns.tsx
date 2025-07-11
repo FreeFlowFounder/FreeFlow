@@ -441,12 +441,27 @@ export default function MyCampaigns() {
                       </div>
                       
                       <div className="flex flex-col gap-2 ml-4">
-                        <Link href={`/campaign/${campaign.contractAddress}`}>
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                        </Link>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('View Details clicked, navigating to:', `/campaign/${campaign.contractAddress}`);
+                            console.log('Campaign object:', campaign);
+                            console.log('Contract address:', campaign.contractAddress);
+                            
+                            // Use programmatic navigation
+                            if (campaign.contractAddress) {
+                              window.location.href = `/campaign/${campaign.contractAddress}`;
+                            } else {
+                              console.error('No contract address found for campaign');
+                            }
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
                         {campaign.status === 'ended' && parseFloat(campaign.raised) > 0 && (
                           <Button 
                             onClick={() => handleWithdraw(campaign.contractAddress)}
