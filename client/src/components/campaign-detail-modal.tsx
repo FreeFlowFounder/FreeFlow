@@ -56,6 +56,7 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
         [
           "function deadline() view returns (uint256)",
           "function goal() view returns (uint256)",
+          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
           "function getWithdrawableAmount() view returns (uint256,uint256)",
           "function getFeeBalances() view returns (uint256,uint256)"
         ],
@@ -68,21 +69,29 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
       const deadlineNum = Number(deadline);
       const isActive = deadlineNum * 1000 > Date.now();
       
-      // Get blockchain data for sync
+      // Get blockchain data for sync using getTotalBalance() method
       let blockchainRaised = '0';
-      if (isActive) {
-        const [ethAvailable] = await campaignContract.getWithdrawableAmount();
-        blockchainRaised = ethers.formatEther(ethAvailable);
-      } else {
-        try {
-          const [ethAvailable] = await campaignContract.getWithdrawableAmount();
-          const [currentFees] = await campaignContract.getFeeBalances();
-          const totalFinalBalance = ethAvailable + currentFees;
-          blockchainRaised = ethers.formatEther(totalFinalBalance);
-        } catch (error) {
-          console.log('Could not get fees for ended campaign, using withdrawable amount');
+      try {
+        const totalBalance = await campaignContract.getTotalBalance();
+        blockchainRaised = ethers.formatEther(totalBalance.eth);
+        console.log(`Modal: Campaign ${campaign.contractAddress} blockchain balance: ${blockchainRaised} ETH`);
+      } catch (error) {
+        console.warn('Could not get total balance, trying fallback method:', error);
+        // Fallback to original method if getTotalBalance fails
+        if (isActive) {
           const [ethAvailable] = await campaignContract.getWithdrawableAmount();
           blockchainRaised = ethers.formatEther(ethAvailable);
+        } else {
+          try {
+            const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+            const [currentFees] = await campaignContract.getFeeBalances();
+            const totalFinalBalance = ethAvailable + currentFees;
+            blockchainRaised = ethers.formatEther(totalFinalBalance);
+          } catch (error) {
+            console.log('Could not get fees for ended campaign, using withdrawable amount');
+            const [ethAvailable] = await campaignContract.getWithdrawableAmount();
+            blockchainRaised = ethers.formatEther(ethAvailable);
+          }
         }
       }
       

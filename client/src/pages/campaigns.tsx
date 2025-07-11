@@ -42,6 +42,13 @@ export default function Campaigns() {
 
 
   useEffect(() => {
+    // Clear all campaign data once on page load to force fresh sync
+    if (typeof window !== 'undefined' && !sessionStorage.getItem('campaign_data_cleared')) {
+      ProgressTracker.clearAllData();
+      sessionStorage.setItem('campaign_data_cleared', 'true');
+      console.log('Cleared all campaign data to force fresh sync with blockchain');
+    }
+    
     fetchCampaigns();
     
     // Set up automatic refresh every 60 seconds
@@ -384,6 +391,7 @@ export default function Campaigns() {
       "function deadline() view returns (uint256)",
       "function owner() view returns (address)",
       "function goal() view returns (uint256)",
+      "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
       "function getWithdrawableAmount() view returns (uint256,uint256)",
       "function getFeeBalances() view returns (uint256,uint256)"
     ];
@@ -492,29 +500,35 @@ export default function Campaigns() {
         // Get campaign progress using frontend tracker
         const goalInEth = ethers.formatEther(goal);
         
-        // Get current blockchain data for sync
+        // Get current blockchain data for sync using getTotalBalance() method
         let blockchainRaised = '0';
-        if (isActive) {
-          // For active campaigns, use current withdrawable amount
-          const withdrawableResult = await campaignContract.getWithdrawableAmount();
-          const [ethAvailable] = withdrawableResult;
-          blockchainRaised = ethers.formatEther(ethAvailable);
-        } else {
-          // For ended campaigns, try to get total raised (withdrawable + fees)
-          try {
-            const [withdrawableResult, feeResult] = await Promise.all([
-              campaignContract.getWithdrawableAmount(),
-              campaignContract.getFeeBalances()
-            ]);
-            const [ethWithdrawable] = withdrawableResult;
-            const [ethFees] = feeResult;
-            
-            const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
-            blockchainRaised = ethers.formatEther(totalRaised);
-          } catch (error) {
-            console.warn('Could not get blockchain data for ended campaign:', error);
-            const contractBalance = await provider.getBalance(address);
-            blockchainRaised = ethers.formatEther(contractBalance);
+        try {
+          const totalBalance = await campaignContract.getTotalBalance();
+          blockchainRaised = ethers.formatEther(totalBalance.eth);
+          console.log(`Campaign ${address} blockchain balance: ${blockchainRaised} ETH`);
+        } catch (error) {
+          console.warn('Could not get total balance, trying fallback method:', error);
+          // Fallback to original method if getTotalBalance fails
+          if (isActive) {
+            const withdrawableResult = await campaignContract.getWithdrawableAmount();
+            const [ethAvailable] = withdrawableResult;
+            blockchainRaised = ethers.formatEther(ethAvailable);
+          } else {
+            try {
+              const [withdrawableResult, feeResult] = await Promise.all([
+                campaignContract.getWithdrawableAmount(),
+                campaignContract.getFeeBalances()
+              ]);
+              const [ethWithdrawable] = withdrawableResult;
+              const [ethFees] = feeResult;
+              
+              const totalRaised = BigInt(ethWithdrawable) + BigInt(ethFees);
+              blockchainRaised = ethers.formatEther(totalRaised);
+            } catch (error) {
+              console.warn('Could not get blockchain data for ended campaign:', error);
+              const contractBalance = await provider.getBalance(address);
+              blockchainRaised = ethers.formatEther(contractBalance);
+            }
           }
         }
         

@@ -52,6 +52,7 @@ export default function CampaignDetail() {
           "function owner() view returns (address)",
           "function campaignOwner() view returns (address)",
           "function goal() view returns (uint256)",
+          "function getTotalBalance() view returns (tuple(uint256 eth, address[] tokens, uint256[] amounts))",
           "function getUpdateCount() view returns (uint256)",
           "function getUpdate(uint256) view returns (string, uint256)",
           "function postUpdate(string memory newUpdate)",
@@ -95,14 +96,22 @@ export default function CampaignDetail() {
           throw new Error(`Failed to get basic campaign data: ${error.message}`);
         }
         
-        // Use direct contract balance for now (simpler approach)
+        // Use getTotalBalance() method for consistency with other pages
         try {
-          const balance = await provider.getBalance(contractAddress);
-          ethAvailable = balance;
-          console.log('Contract balance:', ethers.formatEther(balance));
-        } catch (balanceError: any) {
-          console.log('Balance check failed:', balanceError.message);
-          ethAvailable = BigInt(0);
+          const totalBalance = await campaignContract.getTotalBalance();
+          ethAvailable = totalBalance.eth;
+          console.log('Campaign detail: getTotalBalance() returned:', ethers.formatEther(totalBalance.eth));
+        } catch (error) {
+          console.warn('getTotalBalance() failed, using direct contract balance:', error);
+          // Fallback to direct contract balance
+          try {
+            const balance = await provider.getBalance(contractAddress);
+            ethAvailable = balance;
+            console.log('Contract balance (fallback):', ethers.formatEther(balance));
+          } catch (balanceError: any) {
+            console.log('Balance check failed:', balanceError.message);
+            ethAvailable = BigInt(0);
+          }
         }
         
         const goalInEth = ethers.formatEther(goal);

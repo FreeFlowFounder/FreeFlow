@@ -47,9 +47,14 @@ export class ProgressTracker {
     provider?: any
   ): Promise<void> {
     const existing = this.getCampaignProgress(campaignAddress);
-    if (existing) {
-      console.log(`Campaign ${campaignAddress} already initialized with progress: ${existing.progress}%`);
-      return; // Already initialized
+    if (existing && existing.isEnded) {
+      console.log(`Campaign ${campaignAddress} already ended with locked progress: ${existing.progress}%`);
+      return; // Don't modify ended campaigns
+    }
+    
+    // For active campaigns, always sync with blockchain even if already initialized
+    if (existing && !existing.isEnded) {
+      console.log(`Campaign ${campaignAddress} already initialized with progress: ${existing.progress}%, syncing with blockchain...`);
     }
     
     // Convert ETH goal to USD at campaign creation
@@ -468,5 +473,12 @@ export class ProgressTracker {
         localStorage.removeItem(key);
       }
     });
+  }
+
+  // Force refresh campaign data (clear cache and re-sync)
+  static clearCampaignData(campaignAddress: string): void {
+    const key = CAMPAIGN_PROGRESS_KEY + campaignAddress;
+    localStorage.removeItem(key);
+    console.log(`Cleared cached data for campaign ${campaignAddress}`);
   }
 }
