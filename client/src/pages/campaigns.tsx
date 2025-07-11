@@ -102,8 +102,86 @@ export default function Campaigns() {
       // Create provider that works without wallet connection
       let provider;
       if (window.ethereum) {
-        console.log('Using wallet provider (like My Campaigns) - wallet connected:', !!wallet);
-        provider = new ethers.BrowserProvider(window.ethereum);
+        try {
+          const walletProvider = new ethers.BrowserProvider(window.ethereum);
+          const network = await walletProvider.getNetwork();
+          
+          // Base mainnet should be chainId 8453
+          if (import.meta.env.VITE_NETWORK === 'mainnet' && network.chainId !== BigInt(8453)) {
+            // For mobile browsers, force reconnection to Base network
+            try {
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x2105' }] // Base mainnet chainId in hex
+              });
+              const baseNetwork = await walletProvider.getNetwork();
+              
+              if (baseNetwork.chainId === BigInt(8453)) {
+                provider = walletProvider;
+              } else {
+                throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
+              }
+            } catch (networkError) {
+              console.log('Network switch failed, falling back to public RPC');
+              // Fall back to public RPC instead of failing completely
+              const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+              const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
+                ? isMobile 
+                  ? ['https://base.publicnode.com', 'https://base-mainnet.g.alchemy.com/v2/demo']
+                  : ['https://mainnet.base.org', 'https://base-mainnet.g.alchemy.com/v2/demo']
+                : ['https://sepolia.base.org'];
+              
+              for (const rpcUrl of rpcUrls) {
+                try {
+                  const fallbackProvider = new ethers.JsonRpcProvider(rpcUrl, {
+                    chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+                    name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+                  }, { staticNetwork: true });
+                  
+                  await fallbackProvider.getNetwork();
+                  provider = fallbackProvider;
+                  break;
+                } catch (e) {
+                  console.log('Fallback RPC failed:', rpcUrl);
+                }
+              }
+              
+              if (!provider) {
+                throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
+              }
+            }
+          } else {
+            provider = walletProvider;
+          }
+        } catch (walletError) {
+          console.log('Wallet connection failed, using public RPC');
+          // If wallet connection fails, fall back to public RPC
+          const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          const rpcUrls = import.meta.env.VITE_NETWORK === 'mainnet' 
+            ? isMobile 
+              ? ['https://base.publicnode.com', 'https://base-mainnet.g.alchemy.com/v2/demo']
+              : ['https://mainnet.base.org', 'https://base-mainnet.g.alchemy.com/v2/demo']
+            : ['https://sepolia.base.org'];
+          
+          for (const rpcUrl of rpcUrls) {
+            try {
+              const fallbackProvider = new ethers.JsonRpcProvider(rpcUrl, {
+                chainId: import.meta.env.VITE_NETWORK === 'mainnet' ? 8453 : 84532,
+                name: import.meta.env.VITE_NETWORK === 'mainnet' ? 'base' : 'base-sepolia'
+              }, { staticNetwork: true });
+              
+              await fallbackProvider.getNetwork();
+              provider = fallbackProvider;
+              break;
+            } catch (e) {
+              console.log('Fallback RPC failed:', rpcUrl);
+            }
+          }
+          
+          if (!provider) {
+            throw walletError;
+          }
+        }
       } else {
         console.log('No wallet detected, using public RPC providers');
         // Multiple RPC endpoints for better reliability
@@ -168,39 +246,6 @@ export default function Campaigns() {
       
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
       const factoryAddress = getAddress("CampaignFactory");
-      // Verify network connection for mainnet
-      if (import.meta.env.VITE_NETWORK === 'mainnet') {
-        try {
-          const network = await provider.getNetwork();
-          
-          // Base mainnet should be chainId 8453
-          if (network.chainId !== BigInt(8453)) {
-            // For mobile browsers, force reconnection to Base network
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-              const baseProvider = new ethers.JsonRpcProvider('https://base.publicnode.com', {
-                chainId: 8453,
-                name: 'base'
-              }, {
-                staticNetwork: true
-              });
-              
-              const baseNetwork = await baseProvider.getNetwork();
-              
-              if (baseNetwork.chainId === BigInt(8453)) {
-                provider = baseProvider;
-              } else {
-                throw new Error(`Failed to connect to Base network. Got chainId ${baseNetwork.chainId}`);
-              }
-            } else {
-              throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
-            }
-          }
-        } catch (e) {
-          console.error('Network connection error:', e);
-          throw e;
-        }
-      }
       
       const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
       
