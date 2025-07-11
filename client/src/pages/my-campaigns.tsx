@@ -454,21 +454,36 @@ export default function MyCampaigns() {
                       </div>
                       
                       <div className="flex flex-col gap-2 ml-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
+                        <button 
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
                           onClick={(e) => {
-                            console.log('View Details clicked, contract address:', campaign.contractAddress);
-                            if (campaign.contractAddress) {
-                              setLocation(`/campaign/${campaign.contractAddress}`);
-                            } else {
-                              console.error('No contract address found');
+                            console.log('=== SIMPLE BUTTON CLICK EVENT ===');
+                            console.log('Event object:', e);
+                            console.log('Campaign object:', campaign);
+                            console.log('Contract address:', campaign.contractAddress);
+                            console.log('setLocation function:', setLocation);
+                            
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            try {
+                              if (campaign.contractAddress) {
+                                console.log('Calling setLocation with:', `/campaign/${campaign.contractAddress}`);
+                                setLocation(`/campaign/${campaign.contractAddress}`);
+                                console.log('setLocation called successfully');
+                              } else {
+                                console.error('No contract address found');
+                              }
+                            } catch (error) {
+                              console.error('Error in click handler:', error);
                             }
                           }}
+                          onMouseDown={() => console.log('Mouse down on button')}
+                          onMouseUp={() => console.log('Mouse up on button')}
                         >
                           <Edit className="w-4 h-4 mr-2" />
                           View Details
-                        </Button>
+                        </button>
                         {campaign.status === 'ended' && (campaign as any).hasWithdrawableFunds && (
                           <Button 
                             onClick={() => handleWithdraw(campaign.contractAddress)}
