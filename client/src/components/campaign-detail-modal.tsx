@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ethers } from 'ethers';
 import { ENV } from '@/lib/env';
 import { ProgressTracker } from '@/lib/progress-tracker';
+import { useCryptoPrices, calculateUSDValue, formatUSDValue } from '@/hooks/use-crypto-prices';
 
 interface CampaignDetailModalProps {
   campaign: Campaign | null;
@@ -35,6 +36,7 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
   const [lockedProgress, setLockedProgress] = useState<number | null>(null);
   const { wallet } = useWallet();
   const { toast } = useToast();
+  const { eth, usdc } = useCryptoPrices();
 
   // Fetch campaign updates and check for locked balance when modal opens
   useEffect(() => {
@@ -453,7 +455,7 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
                   <span className="text-gray-600">Goal: {campaign.goal} ETH</span>
                 </div>
                 <div className="text-center text-sm text-gray-600">
-                  ~${(parseFloat(lockedBalance !== null ? lockedBalance : campaign.raised) * 1880).toLocaleString()} USD raised
+                  {formatUSDValue(calculateUSDValue(lockedBalance !== null ? lockedBalance : campaign.raised, 'ETH', { eth, usdc }))} raised
                   {lockedBalance !== null && (
                     <span className="text-xs text-gray-500 block">(locked at campaign end)</span>
                   )}
