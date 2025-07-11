@@ -39,6 +39,31 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Mobile debug console - capture logs for mobile viewing
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      setShowDebug(true);
+      
+      const originalLog = console.log;
+      const originalError = console.error;
+      
+      console.log = (...args) => {
+        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()}: ${logMessage}`]);
+        originalLog.apply(console, args);
+      };
+      
+      console.error = (...args) => {
+        const logMessage = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+        setDebugLogs(prev => [...prev.slice(-20), `${new Date().toLocaleTimeString()} ERROR: ${logMessage}`]);
+        originalError.apply(console, args);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     fetchCampaigns();
@@ -404,7 +429,10 @@ export default function Campaigns() {
           }
         }
         
-        // Sync with progress tracker
+        // Initialize progress tracker with blockchain recovery for active campaigns
+        await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
+        
+        // Sync with current blockchain state
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)
@@ -661,6 +689,30 @@ export default function Campaigns() {
           )}
         </div>
       </div>
+
+      {/* Mobile Debug Panel */}
+      {showDebug && (
+        <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-xs p-2 max-h-40 overflow-y-auto z-50 border-t">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-bold">Mobile Debug Console</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDebug(false)}
+              className="text-white h-auto p-1"
+            >
+              ×
+            </Button>
+          </div>
+          <div className="space-y-1">
+            {debugLogs.map((log, index) => (
+              <div key={index} className="font-mono text-xs break-words">
+                {log}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Campaign Detail Modal */}
       <CampaignDetailModal

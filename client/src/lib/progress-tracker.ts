@@ -37,20 +37,82 @@ export class ProgressTracker {
     }
   }
 
-  // Initialize campaign progress tracking
-  static async initializeCampaign(campaignAddress: string, goalInEth: string): Promise<void> {
+  // Initialize campaign progress tracking with blockchain state recovery
+  static async initializeCampaign(
+    campaignAddress: string, 
+    goalInEth: string,
+    isActive?: boolean,
+    provider?: any
+  ): Promise<void> {
     const existing = this.getCampaignProgress(campaignAddress);
     if (existing) return; // Already initialized
     
     // Convert ETH goal to USD at campaign creation
     const goalUSD = await this.convertEthToUSD(goalInEth);
     
+    let initialTotalRaisedUSD = '0';
+    let initialProgress = 0;
+    
+    // For active campaigns, try to recover progress from blockchain
+    if (isActive && provider) {
+      try {
+        console.log(`Recovering blockchain state for active campaign: ${campaignAddress}`);
+        
+        const campaignAbi = [
+          "function getWithdrawableAmount() view returns (uint256,uint256)",
+          "function goal() view returns (uint256)"
+        ];
+        
+        const campaignContract = new ethers.Contract(campaignAddress, campaignAbi, provider);
+        
+        // Get the withdrawable amount (total raised minus fees)
+        const [withdrawableWei, feeWei] = await campaignContract.getWithdrawableAmount();
+        const totalRaisedWei = withdrawableWei + feeWei; // Add back the fees to get total raised
+        
+        const totalRaisedEth = ethers.formatEther(totalRaisedWei);
+        console.log(`Blockchain state recovered: ${totalRaisedEth} ETH raised for campaign ${campaignAddress}`);
+        
+        // Convert to USD for progress tracking
+        if (parseFloat(totalRaisedEth) > 0) {
+          initialTotalRaisedUSD = await this.convertEthToUSD(totalRaisedEth);
+          initialProgress = Math.round((parseFloat(initialTotalRaisedUSD) / parseFloat(goalUSD)) * 100 * 100) / 100;
+          
+          console.log(`Progress recovered from blockchain: ${initialProgress}% (${initialTotalRaisedUSD} USD raised)`);
+          
+          // Create a synthetic donation record to represent blockchain state
+          const syntheticDonation: DonationRecord = {
+            amount: totalRaisedEth,
+            token: 'ETH',
+            usdValue: initialTotalRaisedUSD,
+            timestamp: Date.now(),
+            txHash: 'BLOCKCHAIN_RECOVERY'
+          };
+          
+          const progress: CampaignProgress = {
+            goalUSD,
+            goalETH: goalInEth,
+            donations: [syntheticDonation],
+            totalRaisedUSD: initialTotalRaisedUSD,
+            progress: initialProgress,
+            isEnded: false
+          };
+          
+          this.saveCampaignProgress(campaignAddress, progress);
+          return;
+        }
+      } catch (error) {
+        console.warn(`Failed to recover blockchain state for ${campaignAddress}:`, error);
+        // Continue with normal initialization
+      }
+    }
+    
+    // Normal initialization (new campaign or recovery failed)
     const progress: CampaignProgress = {
       goalUSD,
       goalETH: goalInEth,
       donations: [],
-      totalRaisedUSD: '0',
-      progress: 0,
+      totalRaisedUSD: initialTotalRaisedUSD,
+      progress: initialProgress,
       isEnded: false
     };
     
@@ -209,7 +271,7 @@ export class ProgressTracker {
 
   static async getTokenPriceUSD(coinGeckoId: string, amount: string): Promise<string> {
     // Use fallback prices directly to avoid CORS issues in production
-    const fallbackPrices = {
+    const fallbackPrices: { [key: string]: number } = {
       'ethereum': 3500,
       'usd-coin': 1,
       'freeflow-token': 1
