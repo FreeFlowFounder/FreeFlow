@@ -545,9 +545,16 @@ export default function Campaigns() {
         }
         
         // Initialize progress tracker with blockchain recovery for active campaigns
+        console.log(`Initializing progress tracker for ${address}:`);
+        console.log(`- Goal: ${goalInEth} ETH`);
+        console.log(`- Is Active: ${isActive}`);
+        console.log(`- Blockchain Raised: ${blockchainRaised} ETH`);
+        console.log(`- Provider available: ${!!provider}`);
+        
         await ProgressTracker.initializeCampaign(address, goalInEth, isActive, provider);
         
         // Sync with current blockchain state
+        console.log(`Syncing with blockchain state: ${blockchainRaised} ETH raised`);
         await ProgressTracker.syncWithBlockchain(address, goalInEth, blockchainRaised, isActive);
         
         // Get progress from tracker (this will be locked for ended campaigns)

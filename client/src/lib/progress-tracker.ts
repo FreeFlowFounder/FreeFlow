@@ -57,6 +57,7 @@ export class ProgressTracker {
     if (isActive && provider) {
       try {
         console.log(`Recovering blockchain state for active campaign: ${campaignAddress}`);
+        console.log(`Provider type: ${provider.constructor.name}`);
         
         const campaignAbi = [
           "function getWithdrawableAmount() view returns (uint256,uint256)",
@@ -66,9 +67,11 @@ export class ProgressTracker {
         const campaignContract = new ethers.Contract(campaignAddress, campaignAbi, provider);
         
         // Get the withdrawable amount (total raised minus fees)
+        console.log(`Calling getWithdrawableAmount() for ${campaignAddress}`);
         const [withdrawableWei, feeWei] = await campaignContract.getWithdrawableAmount();
-        const totalRaisedWei = withdrawableWei + feeWei; // Add back the fees to get total raised
+        console.log(`Raw blockchain data: withdrawable=${withdrawableWei.toString()}, fees=${feeWei.toString()}`);
         
+        const totalRaisedWei = withdrawableWei + feeWei; // Add back the fees to get total raised
         const totalRaisedEth = ethers.formatEther(totalRaisedWei);
         console.log(`Blockchain state recovered: ${totalRaisedEth} ETH raised for campaign ${campaignAddress}`);
         
@@ -98,12 +101,18 @@ export class ProgressTracker {
           };
           
           this.saveCampaignProgress(campaignAddress, progress);
+          console.log(`Progress saved to localStorage for ${campaignAddress}`);
           return;
+        } else {
+          console.log(`No funds raised yet for ${campaignAddress}, using zero progress`);
         }
       } catch (error) {
         console.warn(`Failed to recover blockchain state for ${campaignAddress}:`, error);
+        console.log(`Error details:`, error);
         // Continue with normal initialization
       }
+    } else {
+      console.log(`Skipping blockchain recovery: isActive=${isActive}, provider=${!!provider}`);
     }
     
     // Normal initialization (new campaign or recovery failed)
