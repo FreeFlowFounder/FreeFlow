@@ -41,6 +41,7 @@ export default function Campaigns() {
   const [error, setError] = useState<string | null>(null);
   const [campaignsToShow, setCampaignsToShow] = useState(5);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{[key: string]: any}>({});
 
 
 
@@ -99,6 +100,18 @@ export default function Campaigns() {
         VITE_OWNER_ADDRESS: import.meta.env.VITE_OWNER_ADDRESS
       });
       
+      // Debug info for mobile browsers
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const hasEthereum = !!window.ethereum;
+      const debugData = {
+        isMobile,
+        hasEthereum,
+        userAgent: navigator.userAgent,
+        network: import.meta.env.VITE_NETWORK,
+        step: 'Starting fetch'
+      };
+      setDebugInfo(prev => ({ ...prev, initial: debugData }));
+      
       // Create provider that works without wallet connection
       let provider;
       if (window.ethereum) {
@@ -147,12 +160,27 @@ export default function Campaigns() {
               }
               
               if (!provider) {
+                setDebugInfo(prev => ({ ...prev, networkError: { 
+                  step: 'Network switch failed completely', 
+                  originalChainId: network.chainId.toString(),
+                  expectedChainId: '8453',
+                  networkError: 'Could not switch or fallback to Base network'
+                } }));
                 throw new Error(`Network mismatch: Expected Base mainnet (chainId 8453), but connected to chainId ${network.chainId}`);
               }
             }
           } else {
             provider = walletProvider;
           }
+          
+          // Debug wallet connection success
+          const finalNetwork = await provider.getNetwork();
+          setDebugInfo(prev => ({ ...prev, walletSuccess: { 
+            step: 'Wallet connection successful', 
+            chainId: finalNetwork.chainId.toString(),
+            networkName: finalNetwork.name,
+            expectedChainId: import.meta.env.VITE_NETWORK === 'mainnet' ? '8453' : '84532'
+          } }));
         } catch (walletError) {
           console.log('Wallet connection failed, using public RPC');
           // If wallet connection fails, fall back to public RPC
@@ -179,10 +207,16 @@ export default function Campaigns() {
           }
           
           if (!provider) {
+            setDebugInfo(prev => ({ ...prev, walletError: { 
+              step: 'Wallet connection failed completely', 
+              error: walletError instanceof Error ? walletError.message : 'Unknown wallet error',
+              fallbackAttempted: true
+            } }));
             throw walletError;
           }
         }
       } else {
+        setDebugInfo(prev => ({ ...prev, noWallet: { step: 'No wallet detected, using public RPC' } }));
         console.log('No wallet detected, using public RPC providers');
         // Multiple RPC endpoints for better reliability
         // Mobile browsers prefer different RPC endpoints due to CORS policies
@@ -238,10 +272,29 @@ export default function Campaigns() {
         }
         
         if (!workingProvider) {
+          setDebugInfo(prev => ({ ...prev, rpcFailure: { step: 'All RPC endpoints failed', tried: rpcUrls } }));
           throw new Error('All RPC endpoints failed. Please check your internet connection.');
         }
         
         provider = workingProvider;
+        
+        // Check network and chain ID
+        try {
+          const network = await workingProvider.getNetwork();
+          setDebugInfo(prev => ({ ...prev, rpcSuccess: { 
+            step: 'RPC connection successful', 
+            provider: workingProvider.constructor.name,
+            chainId: network.chainId.toString(),
+            networkName: network.name,
+            expectedChainId: import.meta.env.VITE_NETWORK === 'mainnet' ? '8453' : '84532'
+          } }));
+        } catch (e) {
+          setDebugInfo(prev => ({ ...prev, rpcSuccess: { 
+            step: 'RPC connection successful but network check failed', 
+            provider: workingProvider.constructor.name,
+            error: e instanceof Error ? e.message : 'Unknown error'
+          } }));
+        }
       }
       
       const factoryAbi = ["function getAllCampaigns() view returns (address[])"];
@@ -276,6 +329,7 @@ export default function Campaigns() {
       
       console.log('Calling getAllCampaigns...');
       const campaignAddresses = await factory.getAllCampaigns();
+      setDebugInfo(prev => ({ ...prev, campaigns: { step: 'Got campaigns', count: campaignAddresses.length, addresses: campaignAddresses.slice(0, 3) } }));
       console.log('Campaign addresses returned:', campaignAddresses.length);
       console.log('Campaign addresses:', campaignAddresses);
       
@@ -766,6 +820,35 @@ export default function Campaigns() {
       </div>
 
 
+
+      {/* Debug Info Panel for Mobile Browsers */}
+      {Object.keys(debugInfo).length > 0 && (
+        <div className="fixed bottom-4 left-4 bg-black text-white text-xs p-3 rounded-lg shadow-lg max-w-sm z-50 max-h-80 overflow-y-auto">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold">Mobile Debug Info</span>
+            <button
+              onClick={() => setDebugInfo({})}
+              className="text-white hover:text-gray-300"
+            >
+              ×
+            </button>
+          </div>
+          {Object.entries(debugInfo).map(([key, data]) => (
+            <div key={key} className="mb-2 border-b border-gray-600 pb-1">
+              <div className="font-semibold">{key}</div>
+              {typeof data === 'object' && data !== null ? (
+                Object.entries(data).map(([subKey, value]) => (
+                  <div key={subKey} className="ml-2 text-xs">
+                    <span className="opacity-75">{subKey}:</span> {String(value)}
+                  </div>
+                ))
+              ) : (
+                <div className="ml-2 text-xs">{String(data)}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Campaign Detail Modal */}
       <CampaignDetailModal
