@@ -541,6 +541,31 @@ export default function Campaigns() {
                 blockchainRaised = backupRaised;
                 console.log(`Using backup RPC data: ${blockchainRaised} ETH`);
               }
+              // If still zero and wallet is available, try wallet RPC as last resort
+              else if (window.ethereum) {
+                console.log(`Both public RPCs returned zero, trying wallet RPC as last resort...`);
+                try {
+                  // Force Base network without showing popup
+                  await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x2105' }],
+                  });
+                  
+                  const walletProvider = new ethers.BrowserProvider(window.ethereum);
+                  const walletContract = new ethers.Contract(address, campaignAbi, walletProvider);
+                  const walletResult = await walletContract.getWithdrawableAmount();
+                  const [walletEthAvailable] = walletResult;
+                  const walletRaised = ethers.formatEther(walletEthAvailable);
+                  console.log(`Wallet RPC got withdrawable amount: ${walletRaised} ETH`);
+                  
+                  if (parseFloat(walletRaised) > 0) {
+                    blockchainRaised = walletRaised;
+                    console.log(`Using wallet RPC data: ${blockchainRaised} ETH`);
+                  }
+                } catch (walletError) {
+                  console.warn(`Wallet RPC also failed:`, walletError);
+                }
+              }
             }
           } catch (error) {
             console.warn(`Failed to get withdrawable amount from primary RPC:`, error);
