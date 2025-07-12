@@ -153,6 +153,7 @@ export default function CampaignDetail() {
         
         const campaignAbi = [
           "function title() view returns (string)",
+          "function description() view returns (string)",
           "function imageUrl() view returns (string)",
           "function deadline() view returns (uint256)",
           "function owner() view returns (address)",
@@ -172,7 +173,7 @@ export default function CampaignDetail() {
         const campaignContract = new ethers.Contract(contractAddress, campaignAbi, provider);
         
         // Fetch campaign data with error handling
-        let title, imageUrl, deadline, owner, goal, ethAvailable;
+        let title, description, imageUrl, deadline, owner, goal, ethAvailable;
         
         try {
           // Try owner() first (v4 contracts), then campaignOwner() (older contracts)
@@ -193,6 +194,17 @@ export default function CampaignDetail() {
           }
         } catch (error: any) {
           throw new Error(`Failed to get campaign title: ${error.message}`);
+        }
+        
+        try {
+          description = await campaignContract.description();
+          // Use fallback if description is empty
+          if (!description || description.trim() === '') {
+            description = `Campaign created by ${owner.slice(0, 6)}...${owner.slice(-4)}`;
+          }
+        } catch (error: any) {
+          console.log('Failed to get description, using fallback:', error.message);
+          description = `Campaign created by ${owner.slice(0, 6)}...${owner.slice(-4)}`;
         }
         
         try {
@@ -245,7 +257,7 @@ export default function CampaignDetail() {
         const campaignData: Campaign = {
           id: contractAddress,
           title,
-          description: `Campaign created by ${owner.slice(0, 6)}...${owner.slice(-4)}`,
+          description: description, // Use the actual description from blockchain
           goal: goalInEth,
           raised: raisedInEth,
           creator: owner,

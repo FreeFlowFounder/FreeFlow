@@ -387,6 +387,7 @@ export default function Campaigns() {
     
     const campaignAbi = [
       "function title() view returns (string)",
+      "function description() view returns (string)",
       "function imageUrl() view returns (string)",
       "function deadline() view returns (uint256)",
       "function owner() view returns (address)",
@@ -474,7 +475,7 @@ export default function Campaigns() {
         }
         
         // Get other data with error handling
-        let title, imageUrl, deadline, goal;
+        let title, description, imageUrl, deadline, goal;
         
         try {
           title = await campaignContract.title();
@@ -485,6 +486,18 @@ export default function Campaigns() {
         } catch (error) {
           console.log(`Failed to get title for campaign ${address}:`, error instanceof Error ? error.message : 'Unknown error');
           continue;
+        }
+        
+        try {
+          description = await campaignContract.description();
+          // Use fallback if description is empty
+          if (!description || description.trim() === '') {
+            description = `Campaign by ${owner.slice(0, 6)}...${owner.slice(-4)}`;
+          }
+        } catch (error) {
+          console.log(`Failed to get description for campaign ${address}:`, error instanceof Error ? error.message : 'Unknown error');
+          // Use fallback description
+          description = `Campaign by ${owner.slice(0, 6)}...${owner.slice(-4)}`;
         }
         
         try {
@@ -583,7 +596,7 @@ export default function Campaigns() {
         const campaign = {
           id: address,
           title,
-          description: `Campaign by ${owner.slice(0, 6)}...${owner.slice(-4)}`,
+          description: description, // Use the actual description from blockchain
           goal: goalInEth,
           raised: raisedInEth,
           creator: owner,
