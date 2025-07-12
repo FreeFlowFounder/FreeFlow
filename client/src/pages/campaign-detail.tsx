@@ -34,7 +34,7 @@ export default function CampaignDetail() {
   const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
   const { eth, usdc } = useCryptoPrices();
 
-  // Separate function to fetch updates that can be reused
+  // Function to fetch campaign updates with caching
   const fetchUpdates = async (contract: ethers.Contract, contractAddress: string) => {
     try {
       console.log('Fetching updates for campaign:', contractAddress);
@@ -60,18 +60,36 @@ export default function CampaignDetail() {
         campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
         setUpdates(campaignUpdates);
         
+        // Cache the updates for persistence
+        try {
+          localStorage.setItem(`campaign_updates_${contractAddress}`, JSON.stringify(campaignUpdates));
+        } catch (cacheErr) {
+          console.log('Failed to cache updates:', cacheErr);
+        }
+        
         console.log(`Successfully loaded ${campaignUpdates.length} updates`);
       } else {
         setUpdates([]);
         console.log('No updates found for this campaign');
       }
-      
     } catch (updateErr) {
       console.log('Failed to fetch campaign updates:', updateErr);
-      // Don't clear updates if there's an error - keep showing any existing ones
-      if (updates.length === 0) {
-        setUpdates([]);
+      
+      // Try to load from cache if available
+      try {
+        const cachedUpdates = localStorage.getItem(`campaign_updates_${contractAddress}`);
+        if (cachedUpdates) {
+          const parsedUpdates = JSON.parse(cachedUpdates);
+          setUpdates(parsedUpdates);
+          console.log(`Loaded ${parsedUpdates.length} updates from cache`);
+          return;
+        }
+      } catch (cacheErr) {
+        console.log('Failed to load cached updates:', cacheErr);
       }
+      
+      // If no cache available, keep any existing updates in state
+      setUpdates(prevUpdates => prevUpdates.length > 0 ? prevUpdates : []);
     }
   };
 
@@ -84,6 +102,18 @@ export default function CampaignDetail() {
       
       try {
         const contractAddress = params.id;
+        
+        // Load cached updates immediately for better UX
+        try {
+          const cachedUpdates = localStorage.getItem(`campaign_updates_${contractAddress}`);
+          if (cachedUpdates) {
+            const parsedUpdates = JSON.parse(cachedUpdates);
+            setUpdates(parsedUpdates);
+            console.log(`Loaded ${parsedUpdates.length} updates from cache initially`);
+          }
+        } catch (cacheErr) {
+          console.log('Failed to load initial cached updates:', cacheErr);
+        }
         
         // Use a basic provider for reading data (no wallet required)
         const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
@@ -200,7 +230,7 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates with improved error handling
+        // Fetch campaign updates (this will also update cache)
         await fetchUpdates(campaignContract, contractAddress);
         
       } catch (err) {
@@ -297,20 +327,15 @@ export default function CampaignDetail() {
       return;
     }
 
+    setIsPostingUpdate(true);
     try {
-      setIsPostingUpdate(true);
-      
-      const campaignContract = new ethers.Contract(
-        params?.id || '', 
-        [
-          "function postUpdate(string memory newUpdate)",
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)"
-        ], 
+      const contract = new ethers.Contract(
+        params?.id || '',
+        ["function postUpdate(string memory newUpdate)"],
         wallet.signer
       );
 
-      const tx = await campaignContract.postUpdate(newUpdate);
+      const tx = await contract.postUpdate(newUpdate.trim());
       await tx.wait();
 
       toast({
@@ -320,16 +345,16 @@ export default function CampaignDetail() {
 
       setNewUpdate('');
       
-      // Wait 1 second then refresh the page to show the new update
+      // Refresh updates after posting
       setTimeout(() => {
-        window.location.reload();
+        refreshUpdates();
       }, 1000);
-
-    } catch (err) {
-      console.error('Failed to post update:', err);
+      
+    } catch (error) {
+      console.error('Failed to post update:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to post update: ' + (err instanceof Error ? err.message : String(err)),
+        title: 'Post Failed',
+        description: 'Failed to post campaign update. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -397,6 +422,13 @@ export default function CampaignDetail() {
         
         campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
         setUpdates(campaignUpdates);
+        
+        // Cache the refreshed updates
+        try {
+          localStorage.setItem(`campaign_updates_${params.id}`, JSON.stringify(campaignUpdates));
+        } catch (cacheErr) {
+          console.log('Failed to cache refreshed updates:', cacheErr);
+        }
         
         toast({
           title: 'Updates Refreshed',
