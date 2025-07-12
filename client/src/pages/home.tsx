@@ -125,8 +125,9 @@ export default function Home() {
               <h4 className="font-semibold mb-4">Community</h4>
               <ul className="space-y-2 text-sm text-gray-300">
                 <li><a href="#" className="hover:text-white transition-colors">Discord</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">GitHub</a></li>
+                <li><a href="https://x.com/FreeFlow_xyz" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Twitter</a></li>
+                <li><a href="https://github.com/FreeFlowFounder/FreeFlow/tree/master?tab=readme-ov-file" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a></li>
+                <li><a href="mailto:founder@getfreeflow.org" className="hover:text-white transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
