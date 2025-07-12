@@ -148,8 +148,19 @@ export function CampaignDetailModal({ campaign, isOpen, onClose }: CampaignDetai
   const fetchCampaignUpdates = async () => {
     setIsLoadingUpdates(true);
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const campaignContract = new ethers.Contract(
+      let provider;
+      let campaignContract;
+      
+      // Use wallet provider if connected, otherwise use public RPC
+      if (wallet && window.ethereum) {
+        console.log('Modal: Using wallet provider for updates');
+        provider = new ethers.BrowserProvider(window.ethereum);
+      } else {
+        console.log('Modal: No wallet connected, using public RPC for updates');
+        provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+      }
+      
+      campaignContract = new ethers.Contract(
         campaign.contractAddress || campaign.id,
         [
           "function getUpdateCount() view returns (uint256)",
