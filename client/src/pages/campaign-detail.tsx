@@ -148,8 +148,19 @@ export default function CampaignDetail() {
           console.log('Failed to load initial cached updates:', cacheErr);
         }
         
-        // Use a basic provider for reading data (no wallet required)
-        const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+        // Use wallet provider first, then fallback to public RPC (same as updates)
+        let provider;
+        try {
+          if (window.ethereum) {
+            provider = new ethers.BrowserProvider(window.ethereum);
+            console.log('Using wallet provider for campaign detail');
+          } else {
+            throw new Error('No wallet provider available');
+          }
+        } catch (walletErr) {
+          console.log('Wallet provider failed, using public RPC:', walletErr);
+          provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+        }
         
         const campaignAbi = [
           "function title() view returns (string)",
