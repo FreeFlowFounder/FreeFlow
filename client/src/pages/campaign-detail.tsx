@@ -34,6 +34,47 @@ export default function CampaignDetail() {
   const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
   const { eth, usdc } = useCryptoPrices();
 
+  // Separate function to fetch updates that can be reused
+  const fetchUpdates = async (contract: ethers.Contract, contractAddress: string) => {
+    try {
+      console.log('Fetching updates for campaign:', contractAddress);
+      
+      const updateCount = await contract.getUpdateCount();
+      console.log('Update count:', Number(updateCount));
+      
+      if (Number(updateCount) > 0) {
+        const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
+        
+        // Fetch all updates sequentially to avoid rate limiting
+        for (let i = 0; i < Number(updateCount); i++) {
+          try {
+            const [message, timestamp] = await contract.getUpdate(i);
+            campaignUpdates.push({ message, timestamp: Number(timestamp) });
+          } catch (err) {
+            console.log(`Failed to fetch update ${i}:`, err);
+            // Continue with other updates even if one fails
+          }
+        }
+        
+        // Sort updates by timestamp (newest first)
+        campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
+        setUpdates(campaignUpdates);
+        
+        console.log(`Successfully loaded ${campaignUpdates.length} updates`);
+      } else {
+        setUpdates([]);
+        console.log('No updates found for this campaign');
+      }
+      
+    } catch (updateErr) {
+      console.log('Failed to fetch campaign updates:', updateErr);
+      // Don't clear updates if there's an error - keep showing any existing ones
+      if (updates.length === 0) {
+        setUpdates([]);
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchCampaignData = async () => {
       if (!params?.id) return;
@@ -159,50 +200,8 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates (single attempt, optimized)
-        try {
-          console.log('Fetching updates for campaign:', contractAddress);
-          
-          // Use the same contract instance to avoid multiple connections
-          const updateCount = await campaignContract.getUpdateCount();
-          console.log('Update count:', Number(updateCount));
-          
-          if (Number(updateCount) > 0) {
-            const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-            
-            // Fetch all updates in parallel for better performance
-            const updatePromises = [];
-            for (let i = 0; i < Number(updateCount); i++) {
-              updatePromises.push(
-                campaignContract.getUpdate(i).catch(err => {
-                  console.log(`Failed to fetch update ${i}:`, err);
-                  return null;
-                })
-              );
-            }
-            
-            const updateResults = await Promise.all(updatePromises);
-            
-            updateResults.forEach((result, index) => {
-              if (result) {
-                const [message, timestamp] = result;
-                campaignUpdates.push({ message, timestamp: Number(timestamp) });
-              }
-            });
-            
-            // Sort updates by timestamp (newest first)
-            campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-            setUpdates(campaignUpdates);
-            
-            console.log(`Successfully loaded ${campaignUpdates.length} updates`);
-          } else {
-            setUpdates([]);
-          }
-          
-        } catch (updateErr) {
-          console.log('Failed to fetch campaign updates:', updateErr);
-          setUpdates([]);
-        }
+        // Fetch campaign updates with improved error handling
+        await fetchUpdates(campaignContract, contractAddress);
         
       } catch (err) {
         console.error('Failed to fetch campaign data:', err);
