@@ -34,10 +34,43 @@ export default function CampaignDetail() {
   const [isRefreshingUpdates, setIsRefreshingUpdates] = useState(false);
   const { eth, usdc } = useCryptoPrices();
 
-  // Separate function to fetch updates that can be reused
-  const fetchUpdates = async (contract: ethers.Contract, contractAddress: string) => {
+  // Function to fetch campaign updates using wallet provider first, then fallback
+  const fetchUpdates = async (contractAddress: string) => {
     try {
       console.log('Fetching updates for campaign:', contractAddress);
+      
+      let provider;
+      let contract;
+      
+      // Try wallet provider first (same as modal)
+      try {
+        if (window.ethereum) {
+          provider = new ethers.BrowserProvider(window.ethereum);
+          contract = new ethers.Contract(
+            contractAddress,
+            [
+              "function getUpdateCount() view returns (uint256)",
+              "function getUpdate(uint256) view returns (string, uint256)"
+            ],
+            provider
+          );
+          console.log('Using wallet provider for updates');
+        } else {
+          throw new Error('No wallet provider available');
+        }
+      } catch (walletErr) {
+        // Fallback to public RPC if wallet provider fails
+        console.log('Wallet provider failed, using public RPC:', walletErr);
+        provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+        contract = new ethers.Contract(
+          contractAddress,
+          [
+            "function getUpdateCount() view returns (uint256)",
+            "function getUpdate(uint256) view returns (string, uint256)"
+          ],
+          provider
+        );
+      }
       
       const updateCount = await contract.getUpdateCount();
       console.log('Update count:', Number(updateCount));
@@ -60,18 +93,36 @@ export default function CampaignDetail() {
         campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
         setUpdates(campaignUpdates);
         
+        // Cache the updates for persistence
+        try {
+          localStorage.setItem(`campaign_updates_${contractAddress}`, JSON.stringify(campaignUpdates));
+        } catch (cacheErr) {
+          console.log('Failed to cache updates:', cacheErr);
+        }
+        
         console.log(`Successfully loaded ${campaignUpdates.length} updates`);
       } else {
         setUpdates([]);
         console.log('No updates found for this campaign');
       }
-      
     } catch (updateErr) {
       console.log('Failed to fetch campaign updates:', updateErr);
-      // Don't clear updates if there's an error - keep showing any existing ones
-      if (updates.length === 0) {
-        setUpdates([]);
+      
+      // Try to load from cache if available
+      try {
+        const cachedUpdates = localStorage.getItem(`campaign_updates_${contractAddress}`);
+        if (cachedUpdates) {
+          const parsedUpdates = JSON.parse(cachedUpdates);
+          setUpdates(parsedUpdates);
+          console.log(`Loaded ${parsedUpdates.length} updates from cache`);
+          return;
+        }
+      } catch (cacheErr) {
+        console.log('Failed to load cached updates:', cacheErr);
       }
+      
+      // If no cache available, keep any existing updates in state
+      setUpdates(prevUpdates => prevUpdates.length > 0 ? prevUpdates : []);
     }
   };
 
@@ -84,6 +135,18 @@ export default function CampaignDetail() {
       
       try {
         const contractAddress = params.id;
+        
+        // Load cached updates immediately for better UX
+        try {
+          const cachedUpdates = localStorage.getItem(`campaign_updates_${contractAddress}`);
+          if (cachedUpdates) {
+            const parsedUpdates = JSON.parse(cachedUpdates);
+            setUpdates(parsedUpdates);
+            console.log(`Loaded ${parsedUpdates.length} updates from cache initially`);
+          }
+        } catch (cacheErr) {
+          console.log('Failed to load initial cached updates:', cacheErr);
+        }
         
         // Use a basic provider for reading data (no wallet required)
         const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
@@ -200,8 +263,8 @@ export default function CampaignDetail() {
         
         setCampaign(campaignData);
 
-        // Fetch campaign updates with improved error handling
-        await fetchUpdates(campaignContract, contractAddress);
+        // Fetch campaign updates (this will also update cache)
+        await fetchUpdates(contractAddress);
         
       } catch (err) {
         console.error('Failed to fetch campaign data:', err);
@@ -297,20 +360,15 @@ export default function CampaignDetail() {
       return;
     }
 
+    setIsPostingUpdate(true);
     try {
-      setIsPostingUpdate(true);
-      
-      const campaignContract = new ethers.Contract(
-        params?.id || '', 
-        [
-          "function postUpdate(string memory newUpdate)",
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)"
-        ], 
+      const contract = new ethers.Contract(
+        params?.id || '',
+        ["function postUpdate(string memory newUpdate)"],
         wallet.signer
       );
 
-      const tx = await campaignContract.postUpdate(newUpdate);
+      const tx = await contract.postUpdate(newUpdate.trim());
       await tx.wait();
 
       toast({
@@ -320,16 +378,16 @@ export default function CampaignDetail() {
 
       setNewUpdate('');
       
-      // Wait 1 second then refresh the page to show the new update
+      // Refresh updates after posting
       setTimeout(() => {
-        window.location.reload();
+        refreshUpdates();
       }, 1000);
-
-    } catch (err) {
-      console.error('Failed to post update:', err);
+      
+    } catch (error) {
+      console.error('Failed to post update:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to post update: ' + (err instanceof Error ? err.message : String(err)),
+        title: 'Post Failed',
+        description: 'Failed to post campaign update. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -363,58 +421,17 @@ export default function CampaignDetail() {
     
     setIsRefreshingUpdates(true);
     try {
-      const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
-      const updateContract = new ethers.Contract(
-        params.id,
-        [
-          "function getUpdateCount() view returns (uint256)",
-          "function getUpdate(uint256) view returns (string, uint256)"
-        ],
-        provider
-      );
+      await fetchUpdates(params.id);
       
-      const updateCount = await updateContract.getUpdateCount();
-      
-      if (Number(updateCount) > 0) {
-        const campaignUpdates: Array<{ message: string; timestamp: number }> = [];
-        
-        // Fetch all updates in parallel
-        const updatePromises = [];
-        for (let i = 0; i < Number(updateCount); i++) {
-          updatePromises.push(
-            updateContract.getUpdate(i).catch(() => null)
-          );
-        }
-        
-        const updateResults = await Promise.all(updatePromises);
-        
-        updateResults.forEach((result) => {
-          if (result) {
-            const [message, timestamp] = result;
-            campaignUpdates.push({ message, timestamp: Number(timestamp) });
-          }
-        });
-        
-        campaignUpdates.sort((a, b) => b.timestamp - a.timestamp);
-        setUpdates(campaignUpdates);
-        
-        toast({
-          title: 'Updates Refreshed',
-          description: `Found ${campaignUpdates.length} updates`,
-        });
-      } else {
-        setUpdates([]);
-        toast({
-          title: 'No Updates',
-          description: 'This campaign has no updates yet',
-        });
-      }
-      
+      toast({
+        title: 'Updates Refreshed',
+        description: 'Campaign updates have been refreshed',
+      });
     } catch (error) {
-      console.error('Manual refresh failed:', error);
+      console.error('Failed to refresh updates:', error);
       toast({
         title: 'Refresh Failed',
-        description: 'Could not refresh updates',
+        description: 'Failed to refresh updates. Please try again.',
         variant: 'destructive',
       });
     } finally {
